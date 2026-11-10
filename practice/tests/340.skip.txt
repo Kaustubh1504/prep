@@ -1,0 +1,1 @@
+Design/discussion question about streaming a multi-gigabyte file from a disk path (plus parallelization); it has no in-memory function interface or I/O conventions (e.g. empty-file result) that can be auto-tested.

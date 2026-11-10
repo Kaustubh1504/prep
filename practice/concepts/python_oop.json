@@ -1,0 +1,98 @@
+[
+ {
+  "id": "py-28",
+  "area": "Python language",
+  "topic": "OOP: the four pillars",
+  "level": "core",
+  "question": "Explain encapsulation, abstraction, inheritance and polymorphism, each with an example from CI tooling. How does Python do each one differently from Java?",
+  "answer": "- **Encapsulation**: keep state and the rules that protect it together. A `JobConfig` validates in `__post_init__`, so no code path can create an invalid config. Python has **no `private`**: a leading `_name` means \"internal, by convention\", and properties let you add validation later without changing callers.\n- **Abstraction**: expose *what*, hide *how*. A `Flasher` offers `flash(image)` and hides chunking, retries and checksums. In Python this is an `ABC` with `@abstractmethod`, or a `typing.Protocol`. There's no `interface` keyword.\n- **Inheritance**: an *is-a* relationship that reuses behaviour. `ShellStep(Step)` gets `name` and `allow_failure` from `Step` and calls `super().__init__`. Python allows **multiple inheritance**, resolved by the MRO, which Java doesn't for classes.\n- **Polymorphism**: one call, many behaviours. `Pipeline.run` calls `step.run(ctx)` without knowing the concrete type. Python's polymorphism is mostly **duck typing**: any object with the right method works, with no shared base class needed.\n- **Interview tip:** after each definition, give one line on *why it helps*. Encapsulation means invalid states can't happen. Abstraction means callers don't change when internals do. Polymorphism means adding a new type needs no edits to existing code.",
+  "followups": [
+   "Where does duck typing go wrong, and how do Protocols plus mypy help?",
+   "Can you name a case where you'd deliberately avoid inheritance?"
+  ]
+ },
+ {
+  "id": "py-29",
+  "area": "Python language",
+  "topic": "OOP: class vs instance attributes",
+  "level": "core",
+  "question": "What does this print, and why?\n```python\nclass Job:\n    tags = []\n    retries = 0\n\n    def __init__(self, name):\n        self.name = name\n\na, b = Job(\"a\"), Job(\"b\")\na.tags.append(\"smoke\")\na.retries += 1\nprint(b.tags, b.retries, Job.retries, a.retries)\n```",
+  "answer": "Prints `['smoke'] 0 0 1`.\n- `tags` and `retries` are **class attributes**: one object stored on the class, shared by every instance.\n- `a.tags.append(...)` finds `tags` on the class (attribute lookup checks the instance `__dict__`, then the class, then its bases) and **mutates the shared list**, so `b` sees it too.\n- `a.retries += 1` is `a.retries = a.retries + 1`: it reads the class value `0` and then **assigns a new instance attribute** on `a`. That shadows the class attribute for `a` only, so `b.retries` and `Job.retries` stay `0`.\n- **Fix:** create per-instance state in `__init__` (`self.tags = []`), or use a dataclass with `field(default_factory=list)`.\n- **Good uses of class attributes:** constants (`MAX_RETRIES = 5`), shared registries (deliberately shared, like `ResultParser.registry`), and default values for **immutable** types.",
+  "followups": [
+   "How is this the same bug as a mutable default argument?",
+   "What does `vars(a)` show after the code runs?"
+  ]
+ },
+ {
+  "id": "py-30",
+  "area": "Python language",
+  "topic": "OOP: __eq__ and __hash__",
+  "level": "core",
+  "question": "What happens here, and how would you fix it so builds can go in a set?\n```python\nfrom dataclasses import dataclass\n\n@dataclass\nclass Build:\n    id: int\n\nprint(Build(1) == Build(1))\nprint({Build(1)})\n```",
+  "answer": "It prints `True`, then raises `TypeError: unhashable type: 'Build'`.\n- `@dataclass` generates `__eq__` that compares fields. **If a class defines `__eq__` but not `__hash__`, Python sets `__hash__ = None`**, so the object can't go in a set or be a dict key. A plain class with neither method hashes by identity, which is fine but means two equal-looking objects are different keys.\n- **The contract:** if `a == b` then `hash(a) == hash(b)`, and the hash must not change while the object is in a set or dict. So **only immutable values should be hashable by value**.\n- **Fixes:** `@dataclass(frozen=True)` makes the fields read-only and generates a field-based `__hash__`. That's the right choice for value objects like a version or a build id. Alternatively, write `__hash__` yourself from the same fields `__eq__` uses. Avoid `unsafe_hash=True` on mutable objects.\n- **`__eq__` with other types** should `return NotImplemented`, not `False`, so Python can try the other operand, and `==` then falls back to identity (`False`). In `__lt__`, `NotImplemented` makes `<` raise `TypeError`, which is what you want for `version < \"1.2.3\"`.",
+  "followups": [
+   "What breaks if you mutate a key after putting it in a dict?",
+   "Why does `@dataclass(eq=True)` compare `self.__class__ is other.__class__`, and when is that surprising?"
+  ]
+ },
+ {
+  "id": "py-31",
+  "area": "Python language",
+  "topic": "OOP: ABC vs Protocol vs duck typing",
+  "level": "core",
+  "question": "Your flashing tool supports USB and network transports. Would you define the interface with an abstract base class, a `typing.Protocol`, or plain duck typing? What's the difference?",
+  "answer": "- **Duck typing**: no declared interface. Anything with `connect/write/verify/close` works. It's simple and flexible, but mistakes show up only at runtime, deep in a call.\n- **`abc.ABC` + `@abstractmethod`**: *nominal* typing. Implementations must **inherit** from the base, and Python refuses to instantiate a subclass that misses an abstract method (`TypeError` at construction, early and loud). The base can also share real code (template methods like `summary()` built on an abstract `parse()`). Best when you **own the hierarchy** and want shared behaviour.\n- **`typing.Protocol`**: *structural* typing. A class matches if it has the right methods, **with no inheritance needed**. It's checked statically by mypy or pyright, and at runtime only with `@runtime_checkable` (which checks that the methods exist, not their signatures). Best for **dependencies you inject**: a real `UsbTransport`, a third-party client and a test `FakeTransport` all qualify without importing your base class.\n- **My pick for the transport:** a `Protocol`, because the flasher only needs the shape and test fakes stay trivial. For a plugin family like result parsers that share `summary()`, an `ABC`.",
+  "followups": [
+   "What exactly does `isinstance(x, SomeProtocol)` check with `@runtime_checkable`?",
+   "How does `collections.abc` (Iterable, Mapping) fit in?"
+  ]
+ },
+ {
+  "id": "py-32",
+  "area": "Python language",
+  "topic": "OOP: composition vs inheritance",
+  "level": "core",
+  "question": "You're writing a `JenkinsClient` that needs HTTP calls with retries and logging. Would you subclass `requests.Session`, or wrap one? When are mixins appropriate?",
+  "answer": "- **Prefer composition** (*has-a*): `JenkinsClient` **owns** a session (`self._http = session or requests.Session()`) and exposes only domain methods like `trigger(job, params)` and `status(build_id)`.\n  - Callers can't reach for raw HTTP methods you never meant to support.\n  - You can swap or inject the session in tests.\n  - A change inside `requests` can't silently alter your class's behaviour.\n- **Subclassing** `Session` makes `JenkinsClient` *is-a* `Session`. It inherits dozens of public methods, couples you to `requests` internals, and breaks the Liskov rule if you change how `get` behaves.\n- **Use inheritance** for a real *is-a* with a stable base that's designed to be extended, like `ShellStep(Step)` or `JsonParser(ResultParser)`.\n- **Mixins** are small, stateless classes that add one capability (`ReprMixin`, `ToDictMixin`, `LoggingMixin`) and are combined through multiple inheritance. They must call `super()` cooperatively, and should be listed before the main base (`class Client(LoggingMixin, BaseClient)`). Use them sparingly: three or more mixins make the MRO hard to reason about.\n- **One-liner:** inherit to be substitutable, compose to reuse.",
+  "followups": [
+   "What is the Liskov substitution principle, in one sentence?",
+   "How would you add retries: in the client, a session adapter, or a decorator?"
+  ]
+ },
+ {
+  "id": "py-33",
+  "area": "Python language",
+  "topic": "OOP: encapsulation and name mangling",
+  "level": "core",
+  "question": "What does this print? How do you make an attribute private in Python?\n```python\nclass Device:\n    def __init__(self):\n        self._serial = \"ABC\"\n        self.__key = \"secret\"\n\nd = Device()\nprint(d._serial)\nprint(d._Device__key)\nprint(d.__key)\n```",
+  "answer": "Prints `ABC`, then `secret`, then raises `AttributeError: 'Device' object has no attribute '__key'`.\n- Python has **no access control**. `_serial` is a **convention**: it means internal and isn't part of the API, but it's fully accessible.\n- `__key` (two leading underscores, at most one trailing) triggers **name mangling**: inside the class it's rewritten to `_Device__key`. The purpose is to **avoid name clashes in subclasses**, not security. Anyone can still read `d._Device__key`.\n- **Idiomatic encapsulation:** a public attribute first. Switch to `@property` (with a setter that validates) when you need control, and callers' code doesn't change. That's why Python doesn't need Java-style getters and setters.\n- For **read-only** state, use a property without a setter, or a frozen dataclass.\n- Never treat underscores as a security boundary. Secrets belong in a keychain or secret store, not in an object attribute.",
+  "followups": [
+   "When is `__name` mangling genuinely useful?",
+   "How would you make a whole object immutable?"
+  ]
+ },
+ {
+  "id": "py-34",
+  "area": "Python language",
+  "topic": "OOP: dependency injection for testability",
+  "level": "core",
+  "question": "A class creates its own serial connection and calls `time.sleep` between retries, so its tests need hardware and take minutes. How would you redesign it, and how is that different from `mock.patch`?",
+  "answer": "- **Inject the dependencies** instead of creating them inside: `Flasher(transport, *, sleep=time.sleep, clock=time.monotonic)`. Production code passes the real ones, and tests pass a `FakeTransport` and `sleeps.append`.\n- **Fakes over mocks** for the core collaborator: a small fake that records calls (`[\"connect\", \"write:4\", \"close\"]`) and fails on command (`fail={\"connect\": [1]}`) gives readable, deterministic tests of real behaviour, like retry counts, backoff values and close-always.\n- **`mock.patch`** swaps a name **where it's looked up** at test time. It's useful for code you can't change, but it ties tests to import paths and internals and breaks on refactors. With injection you rarely need it.\n- **Design rules behind it:**\n  - *Dependency inversion*: depend on an interface (a Protocol), not on a concrete serial port.\n  - *Single responsibility*: the flasher decides when to retry; the transport talks to hardware.\n  - *Push time and randomness to the edges*: inject clocks, sleeps and random generators.\n- **Keep defaults sensible,** so callers in production don't have to wire everything by hand.",
+  "followups": [
+   "How would you test exponential backoff with jitter deterministically?",
+   "When is `autospec=True` worth it with `mock.patch`?"
+  ]
+ },
+ {
+  "id": "py-35",
+  "area": "Python language",
+  "topic": "OOP: __slots__ and class creation hooks",
+  "level": "stretch",
+  "question": "What do `__slots__` and `__init_subclass__` do? When would you reach for a metaclass instead?",
+  "answer": "- **`__slots__ = (\"name\", \"board\")`** replaces the per-instance `__dict__` with fixed storage.\n  - **Less memory per object**, which matters with millions of small records like parsed log events.\n  - Slightly faster attribute access.\n  - A **typo like `obj.nmae = 1` raises `AttributeError`** instead of silently creating a new attribute.\n  - Costs: no arbitrary attributes, and every class in a hierarchy needs slots to get the full benefit. `@dataclass(slots=True)` (3.10+) generates them.\n- **`__init_subclass__(cls, **kwargs)`** runs on the base class **each time a subclass is defined**. It's the simple way to build plugin registries (`class JsonParser(ResultParser, suffix=\".json\")`) or to validate that subclasses set required attributes. Call `super().__init_subclass__(**kwargs)` inside it.\n- **Metaclasses** (`class Meta(type)`) control class creation itself. ORMs and `ABCMeta` use them. Since `__init_subclass__` and class decorators exist (3.6+), you almost never need one in tooling code. Say so in an interview: it's the mature answer.\n- **Related hook:** `__set_name__` lets a descriptor learn the attribute name it was assigned to.",
+  "followups": [
+   "Why does adding `__slots__` to a subclass of a class without slots barely save memory?",
+   "How does a class decorator registry compare with `__init_subclass__`?"
+  ]
+ }
+]

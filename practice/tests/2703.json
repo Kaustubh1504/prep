@@ -1,0 +1,550 @@
+{
+ "rank": 2703,
+ "kind": "function",
+ "entry": "run_pipeline",
+ "starter": "from typing import Any, Dict\n\n\nclass StepFailed(Exception):\n    \"\"\"Raised by a step that ran but failed (for example a non-zero exit code).\"\"\"\n\n\nclass Step:\n    \"\"\"Base class with name, allow_failure and run(ctx). It must not be instantiable on its own.\"\"\"\n\n    def __init__(self, name: str, allow_failure: bool = False):\n        pass\n\n    def run(self, ctx: Dict[str, Any]) -> None:\n        pass\n\n\nclass SetStep(Step):\n    \"\"\"Sets ctx[key] = value.\"\"\"\n\n    def __init__(self, name: str, key: str, value: Any):\n        pass\n\n\nclass ShellStep(Step):\n    \"\"\"Fills {placeholders} in command from ctx, runs ctx[\"shell\"](command), fails on a non-zero exit code.\"\"\"\n\n    def __init__(self, name: str, command: str, allow_failure: bool = False):\n        pass\n\n\nclass Pipeline:\n    def __init__(self, name: str):\n        pass\n\n    def add(self, step: Step) -> \"Pipeline\":\n        pass\n\n    def run(self, ctx: Dict[str, Any]) -> Dict[str, Any]:\n        pass\n\n\n# ---------------------------------------------------------------------------\n# Provided \u2014 keep this. The tests call run_pipeline(steps, exit_codes, variables):\n#   steps are [\"set\", name, key, value], [\"sh\", name, command, allow_failure] or [\"echo\", name];\n#   \"echo\" is a Step subclass defined here, not by you, so Pipeline must not special-case your classes.\n#   ctx[\"shell\"] is a fake shell: it records each command and returns exit_codes.get(command, 0).\n# ---------------------------------------------------------------------------\nfrom typing import Any, Dict, List\n\n\nclass EchoStep(Step):\n    def run(self, ctx):\n        ctx.setdefault(\"log\", []).append(self.name)\n\n\ndef _raises(action):\n    try:\n        action()\n        return \"no error\"\n    except Exception as err:\n        return type(err).__name__\n\n\ndef _contract():\n    class Incomplete(Step):\n        pass\n\n    p = Pipeline(\"probe\")\n    first = SetStep(\"a\", \"k\", 1)\n    return {\n        \"abstract_step\": _raises(lambda: Step(\"x\")),\n        \"missing_run\": _raises(lambda: Incomplete(\"x\")),\n        \"add_chains\": p.add(first) is p,\n        \"add_non_step\": _raises(lambda: p.add(\"make test\")),\n        \"duplicate_name\": _raises(lambda: p.add(EchoStep(\"a\"))),\n        \"iterates_steps\": [s.name for s in p],\n        \"shell_step_is_step\": isinstance(ShellStep(\"b\", \"true\"), Step),\n    }\n\n\ndef run_pipeline(steps: List[list], exit_codes: Dict[str, int], variables: Dict[str, Any]) -> Dict[str, Any]:\n    executed = []\n\n    def shell(command):\n        executed.append(command)\n        return exit_codes.get(command, 0)\n\n    pipeline = Pipeline(\"ci\")\n    for spec in steps:\n        kind, name, *rest = spec\n        if kind == \"set\":\n            pipeline.add(SetStep(name, rest[0], rest[1]))\n        elif kind == \"sh\":\n            pipeline.add(ShellStep(name, rest[0], allow_failure=rest[1]))\n        else:\n            pipeline.add(EchoStep(name))\n    ctx = dict(variables, shell=shell)\n    result = pipeline.run(ctx)\n    return {\"result\": result, \"executed\": executed, \"log\": ctx.get(\"log\", []),\n            \"length\": len(pipeline), \"contract\": _contract()}\n",
+ "compare": "exact",
+ "notes": "Step is an abstract base class: Step(...) itself, or a subclass without run, raises TypeError. Step stores name and allow_failure. SetStep sets ctx[key] = value. ShellStep fills {placeholders} in its command from ctx (str.format_map), calls ctx[\"shell\"](command) and fails if the exit code is non-zero; a missing placeholder also fails the step. Any exception from run() fails a step. Pipeline.add(step) returns the pipeline (for chaining), raises TypeError for a non-Step and ValueError for a duplicate step name. len(pipeline) is the number of steps and iterating yields the steps in order. run(ctx) returns {\"ok\": bool, \"steps\": [[name, status], ...]} with status passed, failed or skipped: after a failed step without allow_failure, ok becomes False and every later step is skipped; a failed allow_failure step is still reported failed but the pipeline continues. run_pipeline and EchoStep are provided.",
+ "tests": [
+  {
+   "args": [
+    [
+     [
+      "set",
+      "pick",
+      "board",
+      "j3"
+     ],
+     [
+      "sh",
+      "build",
+      "make fw BOARD={board}",
+      false
+     ],
+     [
+      "sh",
+      "test",
+      "pytest -m smoke",
+      false
+     ]
+    ],
+    {},
+    {}
+   ],
+   "expected": {
+    "result": {
+     "ok": true,
+     "steps": [
+      [
+       "pick",
+       "passed"
+      ],
+      [
+       "build",
+       "passed"
+      ],
+      [
+       "test",
+       "passed"
+      ]
+     ]
+    },
+    "executed": [
+     "make fw BOARD=j3",
+     "pytest -m smoke"
+    ],
+    "log": [],
+    "length": 3,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     [
+      "sh",
+      "build",
+      "make",
+      false
+     ],
+     [
+      "sh",
+      "lint",
+      "flake8",
+      true
+     ],
+     [
+      "sh",
+      "test",
+      "pytest",
+      false
+     ],
+     [
+      "echo",
+      "notify"
+     ]
+    ],
+    {
+     "flake8": 1,
+     "pytest": 2
+    },
+    {}
+   ],
+   "expected": {
+    "result": {
+     "ok": false,
+     "steps": [
+      [
+       "build",
+       "passed"
+      ],
+      [
+       "lint",
+       "failed"
+      ],
+      [
+       "test",
+       "failed"
+      ],
+      [
+       "notify",
+       "skipped"
+      ]
+     ]
+    },
+    "executed": [
+     "make",
+     "flake8",
+     "pytest"
+    ],
+    "log": [],
+    "length": 4,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     [
+      "sh",
+      "flash",
+      "flash {board} {image}",
+      false
+     ],
+     [
+      "echo",
+      "after"
+     ]
+    ],
+    {},
+    {
+     "board": "j3"
+    }
+   ],
+   "expected": {
+    "result": {
+     "ok": false,
+     "steps": [
+      [
+       "flash",
+       "failed"
+      ],
+      [
+       "after",
+       "skipped"
+      ]
+     ]
+    },
+    "executed": [],
+    "log": [],
+    "length": 2,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "echo",
+      "start"
+     ],
+     [
+      "sh",
+      "lint",
+      "lint",
+      true
+     ],
+     [
+      "echo",
+      "middle"
+     ],
+     [
+      "sh",
+      "unit",
+      "unit",
+      true
+     ],
+     [
+      "echo",
+      "end"
+     ]
+    ],
+    {
+     "lint": 3,
+     "unit": 1
+    },
+    {}
+   ],
+   "expected": {
+    "result": {
+     "ok": true,
+     "steps": [
+      [
+       "start",
+       "passed"
+      ],
+      [
+       "lint",
+       "failed"
+      ],
+      [
+       "middle",
+       "passed"
+      ],
+      [
+       "unit",
+       "failed"
+      ],
+      [
+       "end",
+       "passed"
+      ]
+     ]
+    },
+    "executed": [
+     "lint",
+     "unit"
+    ],
+    "log": [
+     "start",
+     "middle",
+     "end"
+    ],
+    "length": 5,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "sh",
+      "a",
+      "a",
+      false
+     ],
+     [
+      "sh",
+      "b",
+      "b",
+      false
+     ],
+     [
+      "sh",
+      "c",
+      "c",
+      false
+     ]
+    ],
+    {
+     "a": 1
+    },
+    {}
+   ],
+   "expected": {
+    "result": {
+     "ok": false,
+     "steps": [
+      [
+       "a",
+       "failed"
+      ],
+      [
+       "b",
+       "skipped"
+      ],
+      [
+       "c",
+       "skipped"
+      ]
+     ]
+    },
+    "executed": [
+     "a"
+    ],
+    "log": [],
+    "length": 3,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [],
+    {},
+    {}
+   ],
+   "expected": {
+    "result": {
+     "ok": true,
+     "steps": []
+    },
+    "executed": [],
+    "log": [],
+    "length": 0,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "set",
+      "s1",
+      "image",
+      "fw.bin"
+     ],
+     [
+      "set",
+      "s2",
+      "image",
+      "fw2.bin"
+     ],
+     [
+      "sh",
+      "flash",
+      "flash {image} -> {target}",
+      false
+     ]
+    ],
+    {
+     "flash fw2.bin -> dut": 0
+    },
+    {
+     "target": "dut"
+    }
+   ],
+   "expected": {
+    "result": {
+     "ok": true,
+     "steps": [
+      [
+       "s1",
+       "passed"
+      ],
+      [
+       "s2",
+       "passed"
+      ],
+      [
+       "flash",
+       "passed"
+      ]
+     ]
+    },
+    "executed": [
+     "flash fw2.bin -> dut"
+    ],
+    "log": [],
+    "length": 3,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "sh",
+      "x",
+      "build",
+      false
+     ],
+     [
+      "sh",
+      "y",
+      "test {{literal}}",
+      false
+     ],
+     [
+      "echo",
+      "z"
+     ]
+    ],
+    {
+     "test {literal}": 0,
+     "build": 0
+    },
+    {}
+   ],
+   "expected": {
+    "result": {
+     "ok": true,
+     "steps": [
+      [
+       "x",
+       "passed"
+      ],
+      [
+       "y",
+       "passed"
+      ],
+      [
+       "z",
+       "passed"
+      ]
+     ]
+    },
+    "executed": [
+     "build",
+     "test {literal}"
+    ],
+    "log": [
+     "z"
+    ],
+    "length": 3,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "sh",
+      "only",
+      "deploy",
+      true
+     ]
+    ],
+    {
+     "deploy": 255
+    },
+    {}
+   ],
+   "expected": {
+    "result": {
+     "ok": true,
+     "steps": [
+      [
+       "only",
+       "failed"
+      ]
+     ]
+    },
+    "executed": [
+     "deploy"
+    ],
+    "log": [],
+    "length": 1,
+    "contract": {
+     "abstract_step": "TypeError",
+     "missing_run": "TypeError",
+     "add_chains": true,
+     "add_non_step": "TypeError",
+     "duplicate_name": "ValueError",
+     "iterates_steps": [
+      "a"
+     ],
+     "shell_step_is_step": true
+    }
+   },
+   "hidden": true
+  }
+ ]
+}

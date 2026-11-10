@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pattern Practice</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script>try { if (localStorage.getItem("pattern-practice-theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/browse">Pattern Practice</a>
+    <nav class="tabs">
+      <a href="#/browse" data-tab="browse">Browse</a>
+      <a href="#/plan" data-tab="plan">Plan</a>
+      <a href="#/hard" data-tab="hard">Hard track</a>
+      <a href="#/apple" data-tab="apple">Apple</a>
+      <a href="#/concepts" data-tab="concepts">Concepts</a>
+      <a href="#/blind" data-tab="blind">Blind practice</a>
+      <a href="#/progress" data-tab="progress">Progress</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="timer" id="timer">
+        <select id="timer-length" aria-label="Timer length">
+          <option value="45">45 min</option>
+          <option value="25">25 min</option>
+          <option value="10">10 min</option>
+          <option value="5">5 min</option>
+        </select>
+        <span class="timer-display" id="timer-display">45:00</span>
+        <button id="timer-toggle" type="button">Start</button>
+        <button id="timer-reset" type="button" class="ghost">Reset</button>
+      </div>
+      <button id="theme-toggle" type="button" class="theme-toggle" title="Switch light/dark theme">☀︎</button>
+    </div>
+  </header>
+  <main id="view"></main>
+  <script src="data.js"></script>
+  <script src="tests.js"></script>
+  <script src="runner.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "starter": "import java.math.BigInteger;\nimport java.nio.charset.StandardCharsets;\nimport java.security.MessageDigest;\n\nclass ConsistentHashRing {\n    public ConsistentHashRing(int vnodes) {\n        \n    }\n\n    public void addNode(String name) {\n        \n    }\n\n    public void removeNode(String name) {\n        \n    }\n\n    public String getNode(String key) {\n        \n        return null;\n    }\n\n    // Provided: the ring's hash, the same value as Python's int(md5(s).hexdigest(), 16).\n    static BigInteger hash(String s) {\n        try {\n            return new BigInteger(1, MessageDigest.getInstance(\"MD5\").digest(s.getBytes(StandardCharsets.UTF_8)));\n        } catch (java.security.NoSuchAlgorithmException e) {\n            throw new IllegalStateException(e);\n        }\n    }\n}\n",
+  "className": "ConsistentHashRing",
+  "method": null,
+  "notes": "hash(s) is provided as an unsigned BigInteger (a TreeMap<BigInteger, String> works well as the ring); getNode returns null on an empty ring."
+}

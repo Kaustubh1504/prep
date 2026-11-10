@@ -1,0 +1,451 @@
+[
+  {
+    "id": "gi-01",
+    "area": "Git and Gerrit",
+    "topic": "Merge vs rebase",
+    "question": "What is the difference between `git merge` and `git rebase`, and when should you NOT rebase?",
+    "answer": "- **Merge** joins two histories with a merge commit (or fast-forwards if possible). Existing commits keep their SHAs; history shows exactly what happened, but can get noisy.\n- **Rebase** replays your commits on top of a new base, creating **new commits with new SHAs**. Result is a linear history that is easier to read and bisect.\n- **Golden rule:** don't rebase commits other people already have (a pushed, shared branch like `main` or a release branch). Rewriting them forces everyone to reconcile duplicate/vanished commits and needs a force push.\n- Rebasing your *own* local or review branch is fine: `git pull --rebase`, `git rebase -i` to squash/fixup before review. If you must update a pushed personal branch, use `git push --force-with-lease`, not `--force`.\n- In Gerrit, rebasing your change is normal: it just uploads a new patch set; Gerrit's project **submit type** (e.g. Merge if necessary, Rebase if necessary, Fast Forward Only, Cherry Pick) decides how it lands on the branch.",
+    "followups": [
+      "What does `--force-with-lease` protect you from?",
+      "During a rebase conflict, what do `--ours` and `--theirs` refer to?",
+      "How does `git rebase -i --autosquash` work with `git commit --fixup`?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-02",
+    "area": "Git and Gerrit",
+    "topic": "Reset vs revert",
+    "question": "You pushed a bad commit to a shared branch and teammates have already pulled it. What do you do? Contrast that with `git reset --soft`, `--mixed` and `--hard`.",
+    "answer": "- **Shared branch → `git revert <sha>`**: creates a *new* commit that undoes the change. History is not rewritten, so nobody else is disrupted. Push it (in Gerrit: push the revert for review, or use the change's **Revert** button).\n- Reverting a merge commit needs a parent: `git revert -m 1 <merge-sha>` (git errors out without `-m`).\n- **`git reset`** moves the current branch pointer — only safe for commits nobody else has:\n  - `--soft HEAD~1`: move HEAD only; the undone changes stay **staged**.\n  - `--mixed HEAD~1` (default): also reset the index; changes stay in the **working tree, unstaged**.\n  - `--hard HEAD~1`: reset index **and** working tree; uncommitted work is discarded.\n- Resetting a pushed branch then `push --force` rewrites shared history (and is usually blocked on protected branches) — avoid it.",
+    "followups": [
+      "How would you squash your last 3 local commits into one using reset?",
+      "Can you get back work lost with `git reset --hard`?",
+      "How do you re-apply a change after you reverted it?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-03",
+    "area": "Git and Gerrit",
+    "topic": "Reflog recovery",
+    "question": "You did a bad interactive rebase (or deleted a branch) and your commits seem gone. How do you get them back?",
+    "answer": "- `git reflog` (= `git reflog show HEAD`) lists every position HEAD has been at: commits, checkouts, rebases, resets — even for branches you deleted.\n- Find the entry before the mistake, then either:\n  - `git reset --hard HEAD@{3}` (or `<sha>`) to put the current branch back, or\n  - `git branch rescue <sha>` to recreate a deleted branch without touching your current one (safer).\n- Right after a rebase/merge/reset, `ORIG_HEAD` points at the previous tip: `git reset --hard ORIG_HEAD`.\n- Limits: the reflog is **local only** (not pushed/cloned) and entries expire (defaults: 90 days, 30 days for unreachable commits, then `git gc` can prune).\n- Uncommitted changes are **not** in the reflog; content that was only staged may still be found as dangling blobs via `git fsck --lost-found`.",
+    "followups": [
+      "Your colleague force-pushed over `main`; how could you recover the old tip?",
+      "What is `ORIG_HEAD` vs `HEAD@{1}`?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-04",
+    "area": "Git and Gerrit",
+    "topic": "Cherry-pick and backports",
+    "question": "A fix just landed on `main` and must also ship in `release/2.1`. Walk me through backporting it.",
+    "answer": "- `git switch release/2.1 && git pull`\n- `git cherry-pick -x <sha>` — re-applies that commit's diff as a new commit; `-x` appends `(cherry picked from commit <sha>)` for traceability.\n- Ranges: `git cherry-pick A^..B` (A through B). A merge commit needs `-m 1`.\n- On conflict: fix files, `git add`, `git cherry-pick --continue` (or `--abort`). Re-run the release branch's tests — the surrounding code may differ.\n- With Gerrit: push it for review on the release branch, `git push origin HEAD:refs/for/release/2.1`, or use the **Cherry Pick** action in the Gerrit UI. Keeping the same Change-Id is allowed because a change is identified per project+branch+Change-Id.\n- Policy: fix on trunk first, then backport — so the fix is never lost in the next release.",
+    "followups": [
+      "What are the downsides of heavy cherry-picking between branches?",
+      "How would you find which release branches already contain a fix? (`git branch -r --contains <sha>`, or `git cherry`/patch-id when SHAs differ)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-05",
+    "area": "Git and Gerrit",
+    "topic": "Bisect",
+    "question": "A firmware test started failing sometime in the last 200 commits. How do you find the culprit, and how would you automate it?",
+    "answer": "- Binary search with `git bisect`: ~log2(200) ≈ 8 test runs.\n- `git bisect start <bad> <good>` (e.g. `git bisect start HEAD v2.0`), then mark each checkout `git bisect good` / `git bisect bad` until git prints `<sha> is the first bad commit`.\n- `git bisect skip` when a commit can't be tested (e.g. doesn't build) — git picks a nearby commit instead.\n- Automate: `git bisect run ./test.sh` — exit **0 = good**, **1–127 except 125 = bad**, **125 = skip**, anything else (e.g. >127) aborts the bisect.\n- Finish with `git bisect reset` to return to the original branch. `git bisect log` records the session; `--first-parent` bisects only along merges on the main line.\n- CI use: when a post-merge run covering a batch of commits fails, a bisect job (`git bisect run` with the failing test) can find the culprit automatically and notify the author.",
+    "followups": [
+      "What makes bisect unreliable? (flaky tests, non-deterministic builds)",
+      "How do you bisect for when a bug was *fixed* rather than introduced? (`--term-old/--term-new`)",
+      "Why does `git bisect run` treat exit code 125 specially?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-06",
+    "area": "Git and Gerrit",
+    "topic": "Resolving conflicts",
+    "question": "You rebase your branch onto the latest `main` and hit conflicts. Walk me through resolving them.",
+    "answer": "- `git status` shows conflicted files as *both modified*; `git diff --name-only --diff-filter=U` lists just those.\n- Each file has markers `<<<<<<<`, `=======`, `>>>>>>>` (plus a `|||||||` base section with `git config merge.conflictStyle zdiff3`, git 2.35+). Edit to the correct combined result — not just one side.\n- Take one side wholesale: `git checkout --ours <file>` / `--theirs <file>`. **Careful:** during a *rebase*, `--ours` is the branch you're rebasing **onto** (upstream) and `--theirs` is **your** commit being replayed — the reverse of a merge.\n- `git add <file>`, then `git rebase --continue` (or `git merge --continue` / `git cherry-pick --continue`). Bail out with `--abort`.\n- Build and run tests after resolving — a textually clean merge can still be semantically broken.\n- Repeated conflicts across rebases: `git config rerere.enabled true` records and replays resolutions. `git mergetool` opens a 3-way tool.",
+    "followups": [
+      "How do you avoid big conflicts in the first place?",
+      "What is a semantic conflict, and how does CI catch it?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-07",
+    "area": "Git and Gerrit",
+    "topic": "Branching strategies",
+    "question": "Compare trunk-based development with a release-branch / git-flow model. Which suits a firmware team?",
+    "answer": "- **Trunk-based:** everyone integrates small changes into `main` at least daily; short-lived branches (or Gerrit changes) only; unfinished work hidden behind feature flags. Pros: small merges, fast feedback, CI always tests what ships. Needs strong pre-merge CI.\n- **Release branches:** cut `release/x.y` from trunk when stabilizing; only bug fixes go in, usually as cherry-picks *from* trunk (`-x`). Lets you support shipped versions in parallel.\n- **git-flow:** long-lived `develop` + `main` + feature/release/hotfix branches. Heavy process, long-lived branches drift and cause painful merges; less common now outside versioned products.\n- Firmware fits **trunk + release branches**: ship devices on fixed versions, need hotfixes for old versions, but want everyday integration on trunk. Gerrit naturally enforces trunk-style review of each commit.\n- CI implications: gate every change to trunk; run release-branch pipelines with the same gates; track which fixes are on which branches.",
+    "followups": [
+      "What's the risk of long-lived feature branches?",
+      "How do feature flags work for firmware where you can't just redeploy a server?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-08",
+    "area": "Git and Gerrit",
+    "topic": "Gerrit Change-Id",
+    "question": "What is a Gerrit Change-Id, where does it come from, and what happens if it's missing?",
+    "answer": "- A footer line in the commit message, e.g. `Change-Id: I8473b95934b5732ac55d26311a706c9c2bde9940` (`I` + 40 hex chars).\n- Added by Gerrit's **`commit-msg` hook**: `curl -Lo \"$(git rev-parse --git-dir)/hooks/commit-msg\" https://<gerrit-host>/tools/hooks/commit-msg && chmod +x \"$(git rev-parse --git-dir)/hooks/commit-msg\"` (or `scp` it from `<host>:hooks/commit-msg` over port 29418).\n- It identifies a **change** across rewrites: the SHA changes every time you amend/rebase, but the Change-Id stays, so Gerrit attaches the new commit as the next **patch set** of the same change.\n- Missing Change-Id: if the project requires it (the default), the push is rejected with a *missing Change-Id in message footer* error — install the hook and `git commit --amend --no-edit` to add it.\n- If you accidentally change/drop it, Gerrit creates a brand-new change instead of a new patch set (review history is split).\n- Uniqueness is per project + branch, so the same Change-Id can exist on `main` and `release/*` (handy for cherry-picks).",
+    "followups": [
+      "Why can't Gerrit just track changes by commit SHA?",
+      "You squashed two commits that each had a Change-Id — what happens?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-09",
+    "area": "Git and Gerrit",
+    "topic": "Uploading changes and patch sets",
+    "question": "How do you upload a change to Gerrit for review, and how do you address reviewer comments?",
+    "answer": "- Push to the magic ref, not the branch: `git push origin HEAD:refs/for/main`. Gerrit creates a change (one per new commit) instead of updating `refs/heads/main`.\n- Push options: `git push origin HEAD:refs/for/main%topic=usb-fix,r=alice@example.com` (also `wip`, `ready`, `cc=`), or `-o topic=usb-fix`.\n- Address comments by **amending** the same commit, keeping its Change-Id: edit, `git commit --amend`, push to `refs/for/main` again → **patch set 2**. Don't add a new 'fix review comments' commit (that would become a separate change).\n- For a commit lower in a stack, use `git rebase -i` (edit/fixup) and re-push the whole stack.\n- Fetch someone's patch set: `git fetch origin refs/changes/45/12345/2 && git checkout FETCH_HEAD` (`refs/changes/<last 2 digits>/<change number>/<patch set>`). Gerrit's Download menu shows these commands.\n- Votes on the old patch set may be reset or copied depending on each label's copy rules (e.g. copy Code-Review on a trivial rebase or a commit-message-only edit); Verified is normally reset so CI runs again.",
+    "followups": [
+      "How do you compare patch set 1 and 3? (Gerrit diff base selector; `git range-diff`)",
+      "What happens if you push directly to `refs/heads/main`?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-10",
+    "area": "Git and Gerrit",
+    "topic": "Review labels and submit requirements",
+    "question": "Explain Gerrit's Code-Review and Verified labels. What makes a change submittable?",
+    "answer": "- **Code-Review** (-2..+2): `+2` approved, `+1` looks good but someone else must approve, `0` no score, `-1` prefer not submitted as is, `-2` **veto** — blocks submit until that reviewer removes it.\n- **Verified** (-1..+1): typically voted by CI — `+1` builds/tests pass, `-1` fails. It's a custom label in modern Gerrit (configured by admins in `project.config`, not built in).\n- Who may vote what range is set by per-branch access rules (e.g. only maintainers get `+2`; only the CI bot votes Verified).\n- **Submit requirements** (Gerrit 3.5+; older sites used label functions like MaxWithBlock or Prolog rules) are expressions in `project.config`, e.g. `submittableIf = label:Code-Review=MAX AND -label:Code-Review=MIN` and the same for `Verified`.\n- Typical policy: submittable when it has a `+2`, no `-2`, `Verified +1`, no unresolved comments, and its parent changes are mergeable. Then someone clicks **Submit** and Gerrit merges per the project's submit type.",
+    "followups": [
+      "Why separate Verified from Code-Review?",
+      "How would you require that the +2 comes from someone other than the uploader?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "gi-11",
+    "area": "Git and Gerrit",
+    "topic": "CI integration with review",
+    "question": "How does a CI system hook into Gerrit so every patch set gets built and voted on?",
+    "answer": "- **Events:** Gerrit publishes JSON events over SSH: `ssh -p 29418 ci-bot@gerrit.example.com gerrit stream-events` (needs the *Stream Events* capability) — e.g. `patchset-created`, `comment-added`, `change-merged`, `ref-updated`. Alternatives: the webhooks plugin, or polling the REST API.\n- **Jenkins Gerrit Trigger plugin** listens to that stream, filters by project/branch/event, and starts a build with env vars like `GERRIT_REFSPEC`, `GERRIT_CHANGE_NUMBER`, `GERRIT_PATCHSET_NUMBER`, `GERRIT_PATCHSET_REVISION`, `GERRIT_BRANCH`, `GERRIT_PROJECT`.\n- The job checks out the exact patch set: `git fetch origin \"$GERRIT_REFSPEC\" && git checkout FETCH_HEAD` (refspec looks like `refs/changes/45/12345/3`).\n- **Reporting back:** the plugin posts a 'build started' message, then a Verified vote and build URL. Manually: `ssh -p 29418 ci-bot@host gerrit review --label Verified=+1 --message 'Build OK: <url>' 12345,3` or REST `POST /a/changes/<id>/revisions/<rev>/review` with `{\"labels\": {\"Verified\": 1}, \"message\": \"...\"}`.\n- Because submit requires `Verified +1` and new patch sets reset it, every revision is re-verified. A *Comment Added* trigger (e.g. comment matching `recheck`) lets developers re-run CI.\n- The CI account needs permission to vote Verified on the target refs.",
+    "followups": [
+      "The SSH event stream drops for 10 minutes — what's the impact and how do you make it robust?",
+      "Should CI test the patch set alone or merged with the current branch tip?",
+      "What does the `)]}'` prefix on Gerrit REST responses mean for your Python client?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "gi-12",
+    "area": "Git and Gerrit",
+    "topic": "Relation chains",
+    "question": "You push three dependent commits A ← B ← C to Gerrit in one go. What happens, and what do you do when a reviewer asks for changes to A?",
+    "answer": "- Each commit becomes its own change; Gerrit links them as a **relation chain** (shown in the *Relation chain* section). C depends on B, B on A.\n- A change can only be merged together with or after its parents; submitting C with all parents ready submits the whole chain in order. If A is blocked, B and C are stuck too.\n- To fix A: `git rebase -i` (mark A `edit`, amend, `git rebase --continue`), keeping every Change-Id, then `git push origin HEAD:refs/for/main` → new patch sets for A, B and C.\n- If A gets a new patch set some other way (e.g. edited in the UI), B and C become *outdated* and need a rebase (Gerrit's **Rebase** button or locally).\n- Downloading C (`refs/changes/...`) gives you A and B too, since they are its ancestors.\n- For changes that must land together across repos (no git parent link), use a shared **topic** (`%topic=...`); some sites enable submitting a whole topic at once.",
+    "followups": [
+      "When would you split work into a chain vs one bigger change?",
+      "How does CI behave for a chain — does it test C with A and B included?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "ci-01",
+    "area": "Jenkins and CI/CD",
+    "topic": "Declarative vs scripted",
+    "question": "What's the difference between declarative and scripted Jenkins pipelines? Which would you choose?",
+    "answer": "- Both are Groovy run by the Pipeline (CPS) engine and stored in a `Jenkinsfile`.\n- **Declarative:** `pipeline { ... }` with a fixed structure (`agent`, `stages`, `steps`, `post`, `options`, `when`, `environment`, `triggers`). Validated before it runs, readable, supports *Restart from Stage* and Blue Ocean / stage views well.\n- **Scripted:** `node('label') { stage('Build') { checkout scm; sh 'make' } }` — general Groovy; full flexibility (loops, dynamic stages), error handling via `try/catch/finally` instead of `post`.\n- Declarative escape hatch: a `script { ... }` block for small bits of imperative logic.\n- Default choice: **declarative** for team pipelines; push complex logic into **shared library** steps or Python scripts called from `sh`, rather than giant Groovy blocks.\n- Both run in the Groovy **sandbox** unless trusted (e.g. a trusted global library); non-whitelisted methods need admin script approval.",
+    "followups": [
+      "Why put logic in Python scripts instead of Groovy?",
+      "Why does Jenkins complain about non-serializable objects in pipelines? (CPS persists state across restarts)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-02",
+    "area": "Jenkins and CI/CD",
+    "topic": "Jenkinsfile structure",
+    "question": "Sketch a declarative Jenkinsfile that builds firmware, runs tests, always publishes results, and archives the image on success.",
+    "answer": "```groovy\npipeline {\n  agent { label 'macos && arm64' }\n  options {\n    timeout(time: 45, unit: 'MINUTES')\n    buildDiscarder(logRotator(numToKeepStr: '30'))\n  }\n  environment { BUILD_TYPE = 'release' }\n  stages {\n    stage('Build') { steps { sh './build.sh \"$BUILD_TYPE\"' } }\n    stage('Test')  { steps { sh 'pytest --junitxml=reports/unit.xml' } }\n  }\n  post {\n    always  { junit 'reports/*.xml' }\n    success { archiveArtifacts artifacts: 'out/*.bin', fingerprint: true }\n    failure { echo 'notify owners' }\n  }\n}\n```\n- `agent` = where it runs; `stages` → `stage` → `steps` = what runs; `post` conditions: `always`, `success`, `failure`, `unstable`, `changed`, `fixed`, `regression`, `aborted`, `unsuccessful`, `cleanup`.\n- `when { branch 'main' }` conditionally skips a stage. `junit` comes from the JUnit plugin.",
+    "followups": [
+      "What's the difference between `failure` and `unstable`?",
+      "Where does the `timeout` go if you only want to limit one stage?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-03",
+    "area": "Jenkins and CI/CD",
+    "topic": "Agents and labels",
+    "question": "How do agents and labels work in Jenkins, and how would you schedule tests that need a physical device?",
+    "answer": "- The **controller** schedules and stores config/results; **agents** run builds on **executors**. Best practice: 0 executors on the controller.\n- Agents carry **labels** (`macos`, `arm64`, `dut-usb`); pipelines select with expressions: `agent { label 'macos && arm64' }`, `'linux && !slow'`.\n- `agent any`, `agent none` at top level + per-stage `agent`, `agent { docker { image 'python:3.12' } }` (Docker Pipeline plugin), `agent { kubernetes { ... } }` (Kubernetes plugin) for ephemeral, clean agents.\n- `when { beforeAgent true; branch 'main' }` evaluates the condition before allocating an agent.\n- Hardware: agents attached to devices get specific labels; serialize access with the **Lockable Resources plugin**: `lock(label: 'iphone-dut', quantity: 1, variable: 'DUT') { sh './flash_and_test.py --device \"$DUT\"' }`.\n- Ephemeral agents = reproducible, no leftover state; static agents = warm caches and hardware, but need cleanup and health checks.",
+    "followups": [
+      "How do you detect and drain an unhealthy agent automatically?",
+      "Builds queue for 20 minutes waiting for executors — how do you investigate?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-04",
+    "area": "Jenkins and CI/CD",
+    "topic": "Parallel stages",
+    "question": "How do you run stages in parallel in a declarative pipeline, and what are the gotchas?",
+    "answer": "```groovy\nstage('Tests') {\n  failFast true\n  parallel {\n    stage('Unit') { agent { label 'linux' } steps { sh 'make unit' } }\n    stage('HIL')  { agent { label 'dut-pool' } steps { sh 'make hil' } }\n  }\n}\n```\n- A stage with `parallel` can't also have `steps`; each branch can have its own `agent`. Declarative doesn't allow nesting `parallel` inside a parallel branch.\n- `failFast true` (or `options { parallelsAlwaysFailFast() }`) aborts sibling branches when one fails.\n- `matrix { axes { axis { name 'BOARD'; values 'b1', 'b2' } } stages { ... } }` generates parallel cells for board × config combinations.\n- Gotchas: branches on the same agent share one workspace (write to separate dirs); shared resources (devices, ports) need `lock`; parallelism is limited by available executors; files built on one agent must be `stash`ed/`unstash`ed to reach another.",
+    "followups": [
+      "When is failFast a bad idea?",
+      "How would you shard 2,000 tests across 8 parallel branches?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-05",
+    "area": "Jenkins and CI/CD",
+    "topic": "Shared libraries",
+    "question": "Ten firmware repos have nearly identical Jenkinsfiles. How do you remove the duplication?",
+    "answer": "- Put common logic in a **Jenkins shared library** (its own git repo), registered under *Global Pipeline Libraries* (or at folder level).\n- Layout: `vars/` (global steps — `vars/firmwarePipeline.groovy` with `def call(Map cfg) { ... }`), `src/` (Groovy classes, package-style), `resources/` (files read via `libraryResource`).\n- Use in a Jenkinsfile: `@Library('fw-ci@v1.4.0') _` then `firmwarePipeline(board: 'b1')` — the Jenkinsfile shrinks to a few lines.\n- **Pin a version** (tag/branch) so library changes roll out deliberately; test changes on a branch (`@Library('fw-ci@my-branch')`) or with unit tests (e.g. JenkinsPipelineUnit).\n- Libraries configured globally are *trusted* (run outside the sandbox) — keep review on that repo tight.\n- Keep Groovy thin: the library orchestrates; real logic lives in versioned Python tools that are testable outside Jenkins.",
+    "followups": [
+      "How would you roll out a breaking library change across 10 repos safely?",
+      "What's the `_` after `@Library` for? (the annotation needs something to attach to when you import nothing else)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-06",
+    "area": "Jenkins and CI/CD",
+    "topic": "Credentials handling",
+    "question": "Your pipeline needs a Gerrit HTTP token and an SSH key. How do you handle them safely?",
+    "answer": "- Store them in the Jenkins **credentials store** (scoped to a folder where possible), reference by ID, never in the repo or job config.\n- Bind only where needed (Credentials Binding plugin):\n```groovy\nwithCredentials([string(credentialsId: 'gerrit-token', variable: 'TOKEN')]) {\n  sh 'curl -sSf -u \"ci-bot:$TOKEN\" https://gerrit.example.com/a/changes/12345'\n}\n```\n- Use **single quotes** so the *shell* expands `$TOKEN`; Groovy interpolation (`sh \"...${TOKEN}\"`) puts the secret in the command string and Jenkins warns about it.\n- Other bindings: `usernamePassword(...)`, `sshUserPrivateKey(credentialsId: 'id', keyFileVariable: 'KEY')`, `sshagent(['id']) { ... }` (SSH Agent plugin); `environment { G = credentials('id') }` gives `G_USR`/`G_PSW` for username/password.\n- Masking in logs is best-effort: never `echo` secrets, avoid `set -x`, and transformed values (base64, substrings) are not masked.\n- Least privilege bot accounts, rotation, and don't expose secrets to untrusted pre-merge code (a change under review could exfiltrate them).",
+    "followups": [
+      "Why are pre-merge builds of untrusted changes a secret-leak risk?",
+      "How would you audit which jobs use a credential?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-07",
+    "area": "Jenkins and CI/CD",
+    "topic": "Triggers",
+    "question": "What are the ways a Jenkins pipeline can be triggered, and which would you use for pre-merge vs nightly runs?",
+    "answer": "- **Gerrit events** (Gerrit Trigger plugin): *Patchset Created* for pre-merge verification, *Change Merged*/*Ref Updated* for post-merge, *Comment Added* with a regex like `recheck` for manual reruns. Configured in the job or via the declarative directive generator.\n- **Webhooks** (push model): GitHub/GitLab/Bitbucket plugins, or the Generic Webhook Trigger plugin for arbitrary JSON payloads. Preferred over polling.\n- **Cron:** `triggers { cron('H 2 * * 1-5') }` — `H` hashes the job name to spread load (`H/15 * * * *` = every 15 min at a job-specific offset). `pollSCM('H/5 * * * *')` polls git (fallback only).\n- **Upstream:** `triggers { upstream(upstreamProjects: 'fw-build', threshold: hudson.model.Result.SUCCESS) }`, or call `build job: 'hw-tests', parameters: [...]` from another pipeline.\n- Manual/parameterized runs and the REST API (`/job/<name>/buildWithParameters`).\n- Typical: pre-merge = Gerrit patchset events (fast subset); post-merge = merge events (full suite, batched); nightly cron = long HW/soak tests.",
+    "followups": [
+      "Why is `H` better than `0 2 * * *` on a shared Jenkins?",
+      "What goes wrong with SCM polling at scale?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-08",
+    "area": "Jenkins and CI/CD",
+    "topic": "Artifacts and archiving",
+    "question": "A build stage produces a firmware image that a test stage on a different agent needs, and release images must be kept. How do you manage artifacts?",
+    "answer": "- **Within one build, across agents:** `stash includes: 'out/fw.bin', name: 'fw'` then `unstash 'fw'` on the other agent. Stashes are meant for small/medium files and are discarded when the build ends.\n- **Attach to the build:** `archiveArtifacts artifacts: 'out/**/*.bin', fingerprint: true` — downloadable from the build page; fingerprints (MD5) let you trace which build produced/used a file. `junit` for test reports.\n- **Across jobs:** Copy Artifact plugin, e.g. `copyArtifacts projectName: 'fw-build', selector: lastSuccessful()`, or pass a build number/URL as a parameter.\n- **Retention:** `buildDiscarder(logRotator(numToKeepStr: '50', artifactNumToKeepStr: '10'))` so the controller disk doesn't fill.\n- Release binaries belong in an **external artifact store** (Artifactory/Nexus/S3) with immutable, versioned paths, checksums, and metadata (git SHA, toolchain version) — Jenkins isn't a long-term binary repository.",
+    "followups": [
+      "How do you make a build reproducible enough to rebuild the same image later?",
+      "Why is 'build once, promote the same artifact' important?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-09",
+    "area": "Jenkins and CI/CD",
+    "topic": "Caching and incremental builds",
+    "question": "Every pre-merge build spends 15 minutes cloning and compiling from scratch. How do you add caching without making builds unreliable?",
+    "answer": "- **Source:** keep a git mirror/reference repo on agents (`git clone --reference`), shallow clones (`--depth`), or persistent workspaces that just `git fetch`. The Git plugin exposes shallow/reference clone options.\n- **Dependencies/toolchains:** bake them into agent or Docker images; cache pip/package downloads keyed on a hash of the lockfile.\n- **Compilation:** ccache/sccache, or a build system with content-addressed remote caching (e.g. Bazel) so unchanged targets aren't rebuilt.\n- **Incremental workspaces** on dedicated agents are fast but risk stale state → keep a clean build (e.g. nightly and all release builds) as a backstop; `cleanWs()` (Workspace Cleanup plugin) when needed.\n- Key every cache on its real inputs (lockfile hash, compiler version, flags) so invalidation is automatic; a wrong cache hit is worse than a miss.\n- Jenkins has no built-in cache directive (unlike GitHub Actions); options are agent-local caches, plugins such as Job Cacher, or external cache servers. Measure hit rates.",
+    "followups": [
+      "A cached build passes but the clean build fails — what happened?",
+      "How do you share a cache across ephemeral agents?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "ci-10",
+    "area": "Jenkins and CI/CD",
+    "topic": "Speeding up a slow pipeline",
+    "question": "The pre-merge pipeline takes 90 minutes and developers are frustrated. How would you bring it down?",
+    "answer": "- **Measure first:** per-stage timing over many runs, queue time vs run time, the critical path. Fix the biggest contributor first.\n- **Fail fast:** cheap checks (lint, build, unit tests) first so obvious breaks fail in minutes.\n- **Parallelize** independent stages; **shard** tests across agents balanced by historical duration.\n- **Cache** sources, dependencies and compiled outputs (see caching); pre-built agent images.\n- **Test selection:** run only tests affected by the changed files/targets (dependency graph or path→test mapping) pre-merge.\n- **Split pre-/post-merge:** a fast, gating pre-merge subset (target ~10–15 min); the full matrix and long hardware tests post-merge or nightly, with automatic bisect/revert if they catch something.\n- **Capacity:** more agents/devices, fewer queue waits; remove unnecessary artifact uploads.\n- Track the result (p50/p90 duration, queue time) on a dashboard so it doesn't regress.",
+    "followups": [
+      "What's the risk of test selection, and how do you mitigate it?",
+      "How would you decide which tests belong in pre-merge?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-11",
+    "area": "Jenkins and CI/CD",
+    "topic": "Flaky failures",
+    "question": "About 10% of pipeline runs fail for reasons that disappear on rerun. How do you handle flakiness systematically?",
+    "answer": "- **Detect:** a test that fails then passes on the *same revision* is flaky. Store per-test results (JUnit XML) in a database and track a **flake rate** per test over a rolling window.\n- **Classify failures:** infra (agent lost, device disconnected, network/timeouts) vs test vs real product bug, using log signatures — a good place for automation/ML or an LLM to cluster logs and suggest a cause/owner.\n- **Retry policy:** limited and visible — e.g. retry once for known infra errors (`retry(2) { ... }`), record that a retry happened; never blanket-retry everything, it hides real bugs.\n- **Quarantine:** tests above a threshold move to a non-blocking job, get a bug filed with an owner and a deadline to fix or delete; un-quarantine after a clean streak.\n- **Fix root causes:** fixed `sleep`s instead of waiting on conditions, order dependence, shared state, devices not reset between tests, resource contention.\n- Report flake rate and top flaky tests weekly — trust in CI is the real metric.",
+    "followups": [
+      "How do you stop quarantine from becoming a graveyard?",
+      "How would you prove a test is flaky rather than catching an intermittent product bug?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ci-12",
+    "area": "Jenkins and CI/CD",
+    "topic": "Release gating and rollback",
+    "question": "Design the gates a firmware build must pass before release, and how you'd roll back a bad release.",
+    "answer": "- **Build once, promote:** the release candidate is built once from a tagged commit on the release branch; that exact artifact (same checksum) moves through stages — no rebuilds.\n- **Gates:** all required tests green (unit, integration, hardware-in-the-loop, power/soak), no open release blockers, signed images with checksums and provenance (commit, toolchain), and an explicit approval (e.g. the `input` step or an external release system).\n- **Staged rollout:** internal → beta → wider audience, with telemetry thresholds (crash/boot-failure rates) that halt rollout automatically.\n- **Rollback:** keep previous artifacts so you can re-ship them; in code, `git revert` on the release branch and roll forward.\n- **Firmware caveats:** devices may enforce **anti-rollback** (secure-boot version counters), so a 'rollback' is often a *new*, higher-versioned build containing the old/fixed code; A/B partitions can fall back if the new image fails to boot.\n- Automate the whole path so a release is reproducible and auditable.",
+    "followups": [
+      "What's the difference between rolling back and rolling forward?",
+      "Which metrics would you watch during a staged rollout?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "os-01",
+    "area": "Linux and OS basics",
+    "topic": "Processes vs threads",
+    "question": "What's the difference between a process and a thread? For a Python CI tool that downloads logs and parses them, which would you use?",
+    "answer": "- **Process:** own virtual address space, PID, open file descriptors, environment. Isolated: a crash doesn't take down others. Created with `fork()`/`exec()` (copy-on-write).\n- **Thread:** runs inside a process; shares its memory, heap and file descriptors, but has its own stack and registers. Cheaper to create/switch, but shared state needs locks and one crashing thread kills the process.\n- In standard CPython the **GIL** lets only one thread run Python bytecode at a time:\n  - I/O-bound (downloading logs, REST calls to Gerrit/Jenkins) → threads (`concurrent.futures.ThreadPoolExecutor`) or `asyncio`.\n  - CPU-bound (parsing huge logs) → processes (`ProcessPoolExecutor`/`multiprocessing`).\n- On Linux both are kernel tasks created via `clone()`, differing in what they share.",
+    "followups": [
+      "What does copy-on-write mean after `fork()`?",
+      "What is a race condition, and how do you prevent one?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-02",
+    "area": "Linux and OS basics",
+    "topic": "Signals",
+    "question": "A test runner ignores Ctrl-C and leaves temp files and device locks behind when Jenkins aborts it. Explain SIGINT, SIGTERM and SIGKILL, and how you'd fix it.",
+    "answer": "- **SIGINT (2):** Ctrl-C from the terminal. Python raises `KeyboardInterrupt`.\n- **SIGTERM (15):** default for `kill <pid>`; a polite 'please exit' — catchable, so the process can clean up.\n- **SIGKILL (9):** `kill -9`; can't be caught, blocked or ignored — no cleanup at all. Use only after SIGTERM failed. (SIGSTOP is the other uncatchable one.)\n- Exit status for a signal death is 128 + n: 130 (SIGINT), 137 (SIGKILL, also typical of OOM kills), 143 (SIGTERM).\n- Fix: handle signals and clean up — shell: `trap 'rm -rf \"$tmpdir\"; release_lock' EXIT` and `trap 'exit 143' TERM`; Python: `signal.signal(signal.SIGTERM, handler)` plus `try/finally` or context managers.\n- Make sure the signal reaches children (don't leave orphaned subprocesses); escalate with a grace period: TERM, wait, then KILL. GNU `timeout -k 10 600 cmd` does that (on macOS: `brew install coreutils` → `gtimeout`).",
+    "followups": [
+      "What is SIGHUP used for?",
+      "Why might `kill` on a shell script not stop the program the script started?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-03",
+    "area": "Linux and OS basics",
+    "topic": "Zombie and orphan processes",
+    "question": "`ps` shows dozens of `<defunct>` processes on a build agent. What are they, and how do you get rid of them?",
+    "answer": "- **Zombie:** a child that has exited but whose parent hasn't called `wait()` to read its exit status. It holds no memory, just a process-table entry (PID). Shown as state `Z` / `<defunct>` in `ps -o pid,ppid,stat,comm`.\n- You **can't kill a zombie** (it's already dead). Fix the parent so it reaps children, or kill the parent: the zombies are reparented to PID 1, which reaps them.\n- **Orphan:** a still-running child whose parent died; it is reparented to PID 1 (init/systemd, `launchd` on macOS) or a designated subreaper, which will reap it.\n- Common causes: Python `subprocess.Popen` without `wait()`/`communicate()` (`subprocess.run` waits for you); a container's PID 1 that doesn't reap — use `docker run --init` (tini) or a proper init.\n- Lots of zombies can exhaust the PID limit; lots of orphans usually means leaked background processes from aborted builds.",
+    "followups": [
+      "Why does PID 1 in a container ignore SIGTERM by default?",
+      "How would you find which process is the parent of the zombies?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "os-04",
+    "area": "Linux and OS basics",
+    "topic": "File descriptors and redirection",
+    "question": "Explain stdin/stdout/stderr and file descriptors. What's the difference between `cmd > log 2>&1` and `cmd 2>&1 > log`?",
+    "answer": "- A file descriptor is a small integer indexing a process's open files/sockets/pipes: **0 = stdin, 1 = stdout, 2 = stderr**.\n- `>` overwrite stdout, `>>` append, `2>` redirect stderr, `< file` stdin, `2>/dev/null` discard errors.\n- `2>&1` means 'make fd 2 point where fd 1 points **right now**' — redirections run left to right:\n  - `cmd > log 2>&1` → both stdout and stderr go to `log`.\n  - `cmd 2>&1 > log` → stderr goes to the *old* stdout (terminal), only stdout goes to `log`.\n- Pipes only carry stdout: `cmd 2>&1 | tee build.log` to capture both (bash 4+/zsh: `cmd |& tee build.log`; macOS's `/bin/bash` is 3.2).\n- A pipeline's exit status is the last command's; use `set -o pipefail` in CI scripts so `make | tee log` fails when `make` fails.\n- Debug: `lsof -p <pid>` (Linux also `/proc/<pid>/fd`); 'Too many open files' = hit `ulimit -n`, often a leak.",
+    "followups": [
+      "What does `&>` do in bash?",
+      "Why might a CI step 'pass' even though the compiler failed?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-05",
+    "area": "Linux and OS basics",
+    "topic": "Memory basics",
+    "question": "Explain virtual memory, stack vs heap, and what happens when a build agent runs out of memory.",
+    "answer": "- **Virtual memory:** each process sees its own address space; the MMU maps virtual pages to physical frames via page tables. Gives isolation, lazy allocation (pages backed only when touched), and swapping to disk.\n- **Stack:** per thread, LIFO frames for function calls and locals, fixed max size (e.g. `ulimit -s`, often 8 MB for the main thread on Linux); deep recursion → stack overflow / segfault.\n- **Heap:** dynamic allocations (`malloc`/`new`, Python objects); lives until freed or garbage-collected; issues are leaks and fragmentation.\n- **RSS** (resident in RAM) vs **VSZ** (total virtual size) in `ps`/`top`.\n- **Linux OOM:** with overcommit, when memory truly runs out the OOM killer SIGKILLs a process (highest `oom_score`) → exit 137 with no traceback; check `dmesg` / `journalctl -k` for 'Out of memory: Killed process'. In containers the cgroup memory limit triggers it.\n- macOS has no Linux-style OOM killer — it compresses memory and swaps, so it slows down instead. Microcontroller firmware often has no MMU/virtual memory at all.",
+    "followups": [
+      "A parallel build (`make -j32`) gets killed randomly — how do you diagnose it?",
+      "What's a memory leak in a garbage-collected language like Python?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-06",
+    "area": "Linux and OS basics",
+    "topic": "grep / awk / sed and pipes",
+    "question": "Given a test log with lines like `2026-11-08 10:00:02 ERROR test_flash FAIL 3.4s timeout`, list the failing tests sorted by how often they failed. Then change every ERROR to E in place.",
+    "answer": "- Count failures per test: `grep 'FAIL' build.log | awk '{print $4}' | sort | uniq -c | sort -rn`\n- awk only: `awk '$5==\"FAIL\" {n[$4]++} END {for (t in n) print n[t], t}' build.log | sort -rn`\n- Useful grep flags: `-E` (extended regex), `-i`, `-v` (invert), `-c` (count), `-n` (line numbers), `-o` (only the match), `-r` (recursive), `-l` (filenames). E.g. `grep -oE 'test_[a-z_]+' build.log | sort -u`.\n- sed: `sed -n '100,120p' f` prints a range; `sed -E 's/([0-9.]+)s/\\1 sec/' f` substitutes with a capture group.\n- In-place edit — **GNU vs BSD differ**: Linux `sed -i 's/ERROR/E/' f`; macOS `sed -i '' 's/ERROR/E/' f` (on macOS the GNU form treats the script as the backup suffix and fails). Portable: `sed -i.bak 's/ERROR/E/' f`.\n- Pipes connect stdout→stdin and run all stages at the same time; `uniq` only collapses *adjacent* duplicates, hence `sort` first.",
+    "followups": [
+      "Compute the average test duration with awk.",
+      "When would you switch from a one-liner to a Python script?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-07",
+    "area": "Linux and OS basics",
+    "topic": "find + xargs",
+    "question": "Delete all `.log` files older than 7 days under a workspace, safely handling filenames with spaces.",
+    "answer": "- `find ws -type f -name '*.log' -mtime +7 -print0 | xargs -0 rm -f`\n- `-print0` / `-0` separate names with NUL bytes, so spaces/newlines in filenames don't split arguments (plain `find | xargs` breaks on `a b.log`).\n- Without xargs: `find ws -type f -name '*.log' -mtime +7 -exec rm -f {} +` (`+` batches many files per command; `\\;` runs once per file). Or `-delete`.\n- Dry run first: replace the action with `-print`.\n- `xargs -n 50` limits args per command; `-P 8` runs 8 in parallel (e.g. compress logs concurrently).\n- Empty input: GNU xargs runs the command once anyway unless `-r`/`--no-run-if-empty`; macOS/BSD xargs doesn't run it (and accepts `-r` for compatibility).\n- `-mtime` rounding differs: GNU find truncates to whole days (`+7` ⇒ at least 8 days old); BSD/macOS find rounds up (`+7` ⇒ older than 7 days). For an exact cutoff use `-mmin +10080` (both).",
+    "followups": [
+      "Why quote `'*.log'` in the find command?",
+      "How would you find the 10 largest files in a directory tree?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-08",
+    "area": "Linux and OS basics",
+    "topic": "Permissions",
+    "question": "Explain Unix permissions. What do `chmod 755`, `chmod 600` and `chmod u+x` do, and what does the execute bit mean on a directory?",
+    "answer": "- Three classes — **owner (u), group (g), other (o)** — each with **r=4, w=2, x=1**. `ls -l` shows e.g. `-rwxr-xr-x`.\n- `chmod 755 f` → `rwxr-xr-x` (scripts, directories); `644` → `rw-r--r--` (normal files); `600` → `rw-------` (SSH private keys — ssh refuses keys readable by others).\n- Symbolic: `chmod u+x run.sh`, `chmod g-w f`, `chmod o= f` (remove all for other), `chmod u=rwx,g=rx,o= f` (= 750).\n- **Directories:** `r` = list names, `w` = create/delete/rename entries (needs `x` too), `x` = traverse/access entries by name (`cd`, open files inside). With `r` but no `x` you see names but can't open the files; with `x` but no `r` you can open a file only if you know its name.\n- Deleting a file depends on the **directory's** write permission, not the file's (except with the sticky bit, as on `/tmp`).\n- `chown user:group f` changes ownership; `umask` sets default permissions for new files.",
+    "followups": [
+      "A CI script fails with 'Permission denied' though it exists — what do you check?",
+      "What are setuid and the sticky bit?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-09",
+    "area": "Linux and OS basics",
+    "topic": "cron",
+    "question": "Write a crontab entry that runs a cleanup script at 2:30 AM on weekdays. What commonly goes wrong with cron jobs?",
+    "answer": "- Fields: `minute hour day-of-month month day-of-week command`.\n- `30 2 * * 1-5 /usr/local/bin/cleanup.sh >> /var/log/cleanup.log 2>&1`\n- More: `*/15 * * * *` every 15 min; `0 0 1 * *` monthly; lists/ranges `0 9,17 * * 1-5`; day-of-week 0 or 7 = Sunday.\n- If both day-of-month and day-of-week are restricted, it runs when **either** matches.\n- Pitfalls: cron runs with a **minimal environment** (short `PATH`, no shell profile) → use absolute paths; output is lost/mailed unless redirected; `%` must be escaped as `\\%` in crontab; time zone of the server; overlapping runs (use a lock, e.g. `flock` on Linux).\n- `crontab -e` to edit, `crontab -l` to list. On macOS launchd is the preferred scheduler, though cron still works (may need extra privacy permissions).\n- Jenkins `cron()` uses the same syntax plus `H` for hashed spreading.",
+    "followups": [
+      "How do you prevent two runs of the same cron job from overlapping?",
+      "Why would a script work in your terminal but fail under cron?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-10",
+    "area": "Linux and OS basics",
+    "topic": "TCP vs UDP and ports",
+    "question": "Compare TCP and UDP, and explain what a port is. Which protocol do DNS, HTTPS and SSH use?",
+    "answer": "- **TCP:** connection-oriented (3-way handshake SYN, SYN-ACK, ACK), reliable, ordered byte stream with retransmission, flow and congestion control. Higher latency/overhead.\n- **UDP:** connectionless datagrams; no delivery or ordering guarantees, keeps message boundaries, low overhead/latency. The application handles loss if it cares.\n- Uses: HTTP/1.1 and HTTP/2, SSH, git over SSH → TCP; DNS → mostly UDP 53 (TCP for large responses/zone transfers); video/VoIP/games → UDP; HTTP/3 (QUIC) is built on UDP.\n- A **port** is a 16-bit number identifying an endpoint on a host; a connection is the 5-tuple (protocol, src IP, src port, dst IP, dst port). Clients use ephemeral source ports.\n- Common: 22 SSH, 53 DNS, 80 HTTP, 443 HTTPS, 29418 Gerrit SSH, 8080 Jenkins default HTTP.\n- See listeners: Linux `ss -tlnp`; macOS `lsof -nP -iTCP -sTCP:LISTEN` or `netstat -an`.",
+    "followups": [
+      "What's TIME_WAIT and why do you see so many on a busy server?",
+      "Why does QUIC use UDP instead of TCP?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-11",
+    "area": "Linux and OS basics",
+    "topic": "DNS resolution",
+    "question": "What happens when a program resolves `gerrit.example.com` to an IP address?",
+    "answer": "- The app calls the OS resolver (`getaddrinfo`). It checks `/etc/hosts` (on Linux per `/etc/nsswitch.conf`) and a local cache (systemd-resolved on many Linux distros, `mDNSResponder` on macOS).\n- Cache miss → query the configured **recursive resolver** (from DHCP / `/etc/resolv.conf`).\n- The recursive resolver, if it hasn't cached the answer, asks a **root** server → referred to the **`.com` TLD** servers → referred to **example.com's authoritative** name servers → gets the record.\n- Answer (A for IPv4, AAAA for IPv6, possibly via a CNAME) is cached at each layer for its **TTL**.\n- Tools: `dig gerrit.example.com +short`, `dig +trace` (walk from the root), `nslookup`, `host`. On macOS `dig`/`nslookup` query DNS servers directly and bypass the system resolver (VPN split-DNS, `/etc/hosts`); `dscacheutil -q host -a name gerrit.example.com` shows what apps actually get.\n- macOS cache flush: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`.",
+    "followups": [
+      "After changing a DNS record, why do some machines still hit the old IP?",
+      "What are CNAME, MX and PTR records?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-12",
+    "area": "Linux and OS basics",
+    "topic": "HTTP and what curl does",
+    "question": "What happens, step by step, when you run `curl https://jenkins.example.com/api/json`? Also cover HTTP methods and status code classes.",
+    "answer": "- Steps: parse URL → **DNS** lookup → **TCP** connect to port 443 → **TLS** handshake (SNI, certificate validation) → send request (`GET /api/json`, `Host`, `User-Agent`, `Accept` headers) → read status line, headers, body → print body to stdout. Redirects are **not** followed unless `-L`.\n- **Methods:** GET (read), POST (create/act), PUT (replace), PATCH (partial update), DELETE, HEAD (headers only). GET/HEAD/PUT/DELETE are idempotent; POST isn't.\n- **Status classes:** 1xx informational, 2xx success (200, 201, 204), 3xx redirect (301, 302, 304), 4xx client error (400, 401 unauthenticated, 403 forbidden, 404, 409, 429 rate-limited), 5xx server error (500, 502 bad gateway, 503 unavailable, 504 gateway timeout).\n- Useful flags: `-v` (see each step), `-I` (HEAD), `-sS`, `-f`/`--fail` (exit 22 on HTTP ≥ 400 — essential in CI scripts), `-o file`, `-w '%{http_code}'`, `-X POST -H 'Content-Type: application/json' -d @body.json`, `--retry 3`, `--max-time 30`, `--resolve host:443:1.2.3.4`.\n- Timing breakdown: `curl -o /dev/null -sS -w 'dns=%{time_namelookup} connect=%{time_connect} tls=%{time_appconnect} ttfb=%{time_starttransfer}\\n' <url>`.",
+    "followups": [
+      "401 vs 403?",
+      "Which status codes should your CI client retry, and which not?",
+      "What's HTTP keep-alive / connection reuse?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "os-13",
+    "area": "Linux and OS basics",
+    "topic": "Debugging connectivity with curl and netcat",
+    "question": "A Jenkins agent suddenly can't reach Gerrit on port 29418. How do you debug it from the agent?",
+    "answer": "- Work up the layers:\n  1. **DNS:** `dig gerrit.example.com +short` (macOS: also `dscacheutil -q host -a name ...`). Wrong/no IP → DNS problem.\n  2. **Port reachability:** `nc -zv gerrit.example.com 29418` (add `-w 5` for a timeout).\n     - *Connection refused* = host reachable, nothing listening (or actively rejected) → service down.\n     - *Timeout* = packets dropped → firewall, security group, routing, VPN.\n  3. **Application:** `ssh -p 29418 ci-bot@gerrit.example.com gerrit version` (auth/key issues show here); for HTTPS `curl -v https://gerrit.example.com/` shows DNS/connect/TLS/HTTP stages.\n- On the server: is it listening? `ss -tlnp | grep 29418` (Linux) / `lsof -nP -iTCP:29418 -sTCP:LISTEN` (macOS).\n- Check proxy env vars (`HTTPS_PROXY`, `NO_PROXY`), expired certificates, and whether other agents are affected (one agent vs everyone).\n- Quick test listener: `nc -l 8080` (macOS/BSD and OpenBSD netcat); traditional netcat needs `nc -l -p 8080`.",
+    "followups": [
+      "How does `traceroute` work and when would you use it?",
+      "Only large git fetches fail; small ones work — what might that be?"
+    ],
+    "level": "stretch"
+  }
+]

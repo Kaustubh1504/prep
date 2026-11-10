@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public Map<String, Object> decodeHeader(String hexStr) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "decodeHeader",
+  "notes": "Map values: Integer for version, type and length, a Long for sequence (it can reach 2^32 - 1), and a List<String> for flags; an error result is a map with the single key \"error\"."
+}

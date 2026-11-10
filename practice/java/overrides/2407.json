@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public Map<String, Object> fetchAll(List<Map<String, Object>> responses, int maxRetries) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "fetchAll",
+  "notes": "Response values arrive as JSON types: numbers are Long (or Double for a fractional retry_after), so read them with ((Number) x).intValue() / doubleValue(); items is a List<Object> and next is a String or null. waited can be fractional, so keep it as a double."
+}

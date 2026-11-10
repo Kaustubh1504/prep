@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public List<List<Object>> topPerWindow(String[] lines, int w) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "topPerWindow",
+  "notes": "In Java, make one pass over lines keeping only the current window's counts, and return the windows as a List of [start, endpoint] pairs, e.g. Arrays.asList(start, endpoint) with start as a long."
+}

@@ -1,0 +1,5 @@
+{
+  "starter": "class Solution {\n    public int[] turnstileTimes(int[] time, int[] direction) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "turnstileTimes"
+}

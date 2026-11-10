@@ -1,0 +1,495 @@
+[
+  {
+    "id": "ai-01",
+    "area": "AI/ML for automation",
+    "topic": "Log preprocessing",
+    "question": "Last night's run produced ~3,000 failing-test logs. Before you cluster or classify them, how do you preprocess and normalise the logs?",
+    "answer": "- **Cut to the signal first:** keep the failure region (first error/assert, stack trace, ~N lines before it), not the whole multi-MB log. The *first* error is usually the cause; later ones are often cascades.\n- **Strip noise:** ANSI colour codes, progress bars, repeated lines, framework boilerplate.\n- **Mask volatile tokens** so the same failure looks identical across runs: timestamps, hex addresses, paths, build/device serials, PIDs, numbers → placeholders.\n- **Keep meaningful constants:** whitelist known error codes / assert names before masking numbers, or you merge distinct failures.\n- **Template mining** (e.g. the Drain algorithm) turns lines into templates + parameters; a hash of the normalised excerpt is a cheap **failure signature** for exact dedupe.\n```python\nimport re\nRULES = [\n    (re.compile(r\"\\b\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?\\b\"), \"<TS>\"),\n    (re.compile(r\"\\b0x[0-9a-fA-F]+\\b\"), \"<HEX>\"),\n    (re.compile(r\"(/[\\w.-]+)+\"), \"<PATH>\"),\n    (re.compile(r\"\\d+\"), \"<N>\"),\n]\ndef normalise(line: str) -> str:\n    for pat, tok in RULES:          # order matters: timestamps before bare numbers\n        line = pat.sub(tok, line)\n    return line.strip()\n# \"2026-11-02 10:31:07.123 FAIL /tmp/run42/modem.log: timeout after 300s at 0xdeadbeef\"\n# -> \"<TS> FAIL <PATH>: timeout after <N>s at <HEX>\"\n```",
+    "followups": [
+      "Why is the first error usually more useful than the last?",
+      "What do you lose by masking all numbers, and how do you avoid it?",
+      "How would you handle a 50 MB log that doesn't fit in memory or an LLM context?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-02",
+    "area": "AI/ML for automation",
+    "topic": "TF-IDF vs embeddings",
+    "question": "You want to group similar failure logs. Would you represent them with TF-IDF or with neural embeddings? Walk through the trade-offs.",
+    "answer": "- **TF-IDF:** sparse vector of term weights (term frequency × inverse document frequency). Cheap, CPU-only, deterministic, interpretable (top terms explain a cluster). Works well on **templated machine logs** where the same failure reuses the same tokens. Misses paraphrases/synonyms; sensitive to tokenisation (consider char n-grams for identifiers like `rrc_conn_fail`).\n- **Embeddings** (sentence/code embedding models): dense vectors capturing semantics, so differently-worded messages with the same meaning land close together. Cost: a model to host or call, latency, less interpretable, input-length limits, may be weak on domain jargon, and — if it's an external API — **internal logs leave the building**.\n- Compare with **cosine similarity** in both cases.\n- **What I'd do:** start with a TF-IDF baseline on normalised logs, measure cluster quality on a small hand-labelled sample, and switch to (or combine with) embeddings only if it measurably helps — e.g. human-written messages or many log formats.",
+    "followups": [
+      "How would you measure whether embeddings actually beat TF-IDF here?",
+      "What is IDF doing, and why does it help with log boilerplate?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-03",
+    "area": "AI/ML for automation",
+    "topic": "k-means vs DBSCAN/HDBSCAN",
+    "question": "You've vectorised failure logs. Would you cluster them with k-means or DBSCAN/HDBSCAN, and why?",
+    "answer": "- **k-means:** you must pick *k*; assumes roughly spherical, similar-size clusters; **every point is forced into a cluster** (no \"noise\"). Fast and simple. On L2-normalised TF-IDF (sklearn's default), Euclidean distance is monotonic with cosine distance.\n- **DBSCAN:** params `eps` (neighbourhood radius) and `min_samples`; finds arbitrary-shaped clusters and labels outliers **-1 = noise**. One global `eps` struggles when cluster densities differ.\n- **HDBSCAN:** hierarchical density-based; handles varying density, main knob is `min_cluster_size`, gives membership strength. In sklearn ≥ 1.3 as `sklearn.cluster.HDBSCAN`.\n- **For CI failures** the number of failure types is unknown and new ones appear nightly, so a density method fits: the **noise points are interesting** — they are often brand-new failure modes worth a human look.\n```python\nfrom sklearn.feature_extraction.text import TfidfVectorizer\nfrom sklearn.cluster import DBSCAN\nX = TfidfVectorizer(token_pattern=r\"[^\\s]+\").fit_transform(normalised_logs)\nlabels = DBSCAN(eps=0.5, min_samples=2, metric=\"cosine\").fit_predict(X)\n# e.g. [0 0 1 1 -1]  -> two known groups + one novel failure\n```",
+    "followups": [
+      "How would you pick eps for DBSCAN?",
+      "How do you keep cluster IDs stable from one night to the next?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-04",
+    "area": "AI/ML for automation",
+    "topic": "Choosing k and labelling data",
+    "question": "If you did use k-means, how would you choose k? And where would labelled data for a failure classifier come from?",
+    "answer": "**Choosing k**\n- **Elbow:** plot inertia vs k, look for diminishing returns (often ambiguous).\n- **Silhouette score** (−1 to 1; higher = tighter, better-separated clusters):\n```python\nfrom sklearn.cluster import KMeans\nfrom sklearn.metrics import silhouette_score\nfor k in range(2, 11):\n    labels = KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(X)\n    print(k, silhouette_score(X, labels, metric=\"cosine\"))\n```\n- Ultimately **usefulness wins**: would an engineer agree each cluster is one root cause? Spot-check samples per cluster.\n\n**Getting labels**\n- Agree a small **taxonomy** first (e.g. infra/bench, test bug, product bug, flaky, unknown).\n- **Weak labels from history:** failures already linked to resolved bug reports, reruns that passed (flaky candidates), known-signature tables.\n- **Cluster-then-label:** an engineer labels a few representatives per cluster and the label propagates — far cheaper than one-by-one; spot-check propagation.\n- **Active learning:** ask humans about the most uncertain cases. Track inter-annotator agreement to see if the taxonomy is even well-defined.",
+    "followups": [
+      "What does a negative silhouette value for a point mean?",
+      "How do you stop label noise from weak labels hurting the model?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "ai-05",
+    "area": "AI/ML for automation",
+    "topic": "Class imbalance and evaluation",
+    "question": "You train a classifier to tag failures as infra / test bug / product bug / flaky. 85% of the data is infra. How do you train and evaluate it properly?",
+    "answer": "- **Accuracy is misleading:** always predicting \"infra\" scores 85%. Report **per-class precision/recall**, macro-F1, a confusion matrix, and PR curves for the rare, important classes (product bug).\n- **Training fixes:** class weights (e.g. `class_weight=\"balanced\"`), resampling (oversample minority / undersample majority) — **only on the training split**, never the test set.\n- **Threshold tuning:** pick a per-class decision threshold from the PR curve to meet a precision target, rather than default argmax.\n- **Leakage-safe splits:** split **by time** (train on older weeks, test on newer) and **group** reruns of the same failure/commit together, otherwise near-duplicates in train and test inflate scores.\n- Allow an **\"unknown/abstain\"** outcome for low-confidence predictions instead of forcing a label.",
+    "followups": [
+      "Why can random train/test splits overstate performance on CI logs?",
+      "Macro vs micro F1 — which would you report here and why?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-06",
+    "area": "AI/ML for automation",
+    "topic": "LLM triage design",
+    "question": "How would you use an LLM to triage nightly test failures without blocking releases on hallucinations?",
+    "answer": "- **LLM is advisory, never the gate.** Release gating stays on deterministic signals (test pass/fail, known-signature rules). The LLM summarises, suggests a category/owner, and links similar past issues; a human (or a high-precision rule) takes the action.\n- **Deterministic first:** match known failure signatures and clusters before calling the model; send only the unknowns (also cuts cost).\n- **Prompt design:** role + task, the allowed category list with short definitions, a few labelled examples, and explicit instructions: *use only the provided log; quote evidence lines verbatim; answer `\"unknown\"` if the log doesn't support a conclusion.*\n- **Context:** a trimmed excerpt around the first error plus metadata (test name, bench, branch, recent commits), not the full log.\n- **Structured output** (JSON schema) so results are machine-checkable (see next card), and every suggestion is shown with its evidence and a link to the raw log.\n- **Feedback loop:** engineers accept/correct suggestions in the UI → labelled data for evaluation.",
+    "followups": [
+      "What would make you comfortable letting it auto-file bugs?",
+      "How would you add retrieval of similar past failures (RAG)?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-07",
+    "area": "AI/ML for automation",
+    "topic": "Structured output and grounding",
+    "question": "The LLM sometimes says a failure was caused by a 'kernel panic' that isn't in the log. How do you detect and limit hallucinations?",
+    "answer": "- **Constrain the output:** JSON with an enum for `category`, required `evidence` lines; use the provider's structured-output / JSON-schema mode where available, and **validate anyway**.\n- **Grounding check:** every evidence line must appear verbatim in the log; otherwise reject, retry once, or fall back to `unknown`.\n- **Lower temperature** reduces variability but does **not** eliminate hallucination.\n- **Don't trust self-reported confidence** — LLM confidence is often poorly calibrated; calibrate against a labelled set or use agreement signals (e.g. matches the cluster's known label).\n- **Cross-check** against deterministic facts (bench health, known signatures) and surface disagreements to a human.\n```python\nfrom typing import List, Literal\nfrom pydantic import BaseModel, Field, ValidationError\n\nclass Triage(BaseModel):\n    category: Literal[\"infra\", \"test_bug\", \"product_bug\", \"flaky\", \"unknown\"]\n    confidence: float = Field(ge=0, le=1)\n    evidence: List[str]      # must be copied verbatim from the log\n    summary: str\n\ndef validate(raw: str, log: str):\n    try:\n        t = Triage.model_validate_json(raw)\n    except ValidationError:\n        return None                          # malformed -> retry / unknown\n    if not t.evidence or any(e not in log for e in t.evidence):\n        return None                          # ungrounded -> reject\n    return t\n```",
+    "followups": [
+      "Verbatim matching is brittle after normalisation — how would you relax it safely?",
+      "What would you log for every LLM call to debug bad outputs later?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-08",
+    "area": "AI/ML for automation",
+    "topic": "LLM cost, latency, privacy",
+    "question": "Your LLM triage works on a demo. Now it must run on every nightly failure across many firmware branches. What about cost, latency, and the privacy of internal logs?",
+    "answer": "- **Call the model less:** dedupe by normalised signature hash, cluster, and call **once per cluster/new signature**; cache results keyed by signature + prompt version.\n- **Send fewer tokens:** trimmed excerpts, not whole logs; cost and latency scale with input + output tokens.\n- **Right-size models:** a smaller/cheaper model (or the classic classifier) for routing; a larger one only for summaries of new failure types.\n- **Off the critical path:** run asynchronously after the nightly completes; timeouts, retries with backoff, and a graceful fallback (\"not triaged\") — CI must never wait on the LLM.\n- **Privacy:** internal logs can contain unreleased product details, device identifiers, credentials/tokens. Use **only company-approved model endpoints** (internal or contractually covered), redact secrets/identifiers before sending, respect retention rules, and never paste logs into public chat tools.\n- Track **cost per triaged failure** and latency as first-class metrics.",
+    "followups": [
+      "How would you version prompts so you can compare results over time?",
+      "What would you redact, and how would you test the redactor?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "ai-09",
+    "area": "AI/ML for automation",
+    "topic": "Measuring success: precision/recall",
+    "question": "How would you measure whether an automated triage system is actually good? Why are false positives that block a release so costly?",
+    "answer": "- **Define metrics per action**, not just per model:\n  - *Precision* = of the failures the system flagged as X, how many really were X. *Recall* = of all real X, how many it caught.\n  - \"Mark as product regression / block release\" needs **very high precision**: a false positive stops a release, pulls engineers into a fire drill, and burns trust — after a few, people ignore or bypass the tool.\n  - \"Auto-dismiss as flaky\" also needs high precision, because a false positive there **hides a real bug** (effectively a false negative for the release).\n- **Coverage vs accuracy:** allow abstention; report what fraction it auto-triages *and* how accurate those are.\n- **Pick thresholds from the PR curve** to hit a precision target per action.\n- **Operational metrics:** time-to-triage, % failures with an owner within N hours, human override/correction rate, repeat incidents.\n- Measure on a **held-out, time-split** labelled set, then keep measuring in production via sampled audits.",
+    "followups": [
+      "Which is worse for this team: a missed real regression or a falsely blocked release? How do you decide?",
+      "How would you get ground truth in production?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-10",
+    "area": "AI/ML for automation",
+    "topic": "Human-in-the-loop, shadow mode",
+    "question": "You built a failure classifier with good offline numbers. How do you roll it out safely?",
+    "answer": "1. **Offline evaluation:** replay on historical failures with a time-based split; compare to the current manual/rule-based baseline.\n2. **Shadow mode:** run on live traffic, **log predictions but take no action**; compare against what engineers actually decided. Catches data drift and integration bugs offline evaluation misses.\n3. **Assist mode (human-in-the-loop):** show suggestions with evidence in the triage UI; one-click accept/reject. Every click is a new label.\n4. **Partial automation:** automate only high-confidence, low-risk, reversible actions (e.g. tagging, routing), keep risky ones (blocking, closing bugs) human-approved.\n5. **Guardrails:** feature flag / kill switch, monitoring of precision via sampled audits, alerts on drift (category mix shifts, confidence drops), and an easy \"this was wrong\" button.",
+    "followups": [
+      "What signals would make you roll back?",
+      "How do you avoid the model training on its own unreviewed predictions?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-11",
+    "area": "AI/ML for automation",
+    "topic": "Anomaly detection on CI metrics",
+    "question": "Build times and test pass rates are tracked per night. How would you automatically alert on anomalies without causing alert fatigue?",
+    "answer": "- **Rolling z-score:** (x − mean)/std over a trailing window. Simple, but one outlier inflates mean and std.\n- **Robust version — median/MAD:** modified z = 0.6745·(x − median)/MAD; a common threshold is |z| > 3.5.\n```python\nimport statistics as st\ndef robust_z(history, x):\n    med = st.median(history)\n    mad = st.median(abs(h - med) for h in history)\n    if mad == 0:\n        return 0.0 if x == med else float(\"inf\")\n    return 0.6745 * (x - med) / mad\nrobust_z([41, 43, 40, 42, 44, 41], 120)   # ~53 -> anomaly (build minutes)\n```\n- **Seasonality:** load differs by weekday/weekend, hour, release phases. Compare against the same slot last week, use per-segment baselines (branch, device type, bench), or decompose (e.g. STL) and alert on the residual.\n- **Reduce noise:** require a minimum absolute change **and** persistence (N consecutive points, or change-point methods like CUSUM); dedupe and group related alerts; route to an owner; add hysteresis so alerts don't flap.\n- **Measure alert quality:** track what fraction of alerts were actionable; prune rules nobody acts on.",
+    "followups": [
+      "Why MAD instead of standard deviation?",
+      "A metric legitimately shifts after an infra upgrade — how does your detector adapt?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "ai-12",
+    "area": "AI/ML for automation",
+    "topic": "Predicting flaky tests",
+    "question": "Some tests fail intermittently on unchanged code. How would you detect and predict flaky tests, and what would you do with them?",
+    "answer": "- **Definition:** a test is flaky if it both passes and fails on the **same code** (same commit/build) — e.g. fails then passes on retry.\n- **Detection:** rerun failures; history-based **flip rate** (pass↔fail transitions with no relevant change); fail-then-pass-on-retry counts.\n- **Prediction features:** historical flip rate, duration variance, timeouts/sleeps/waits/async in test code, dependence on hardware/network/RF conditions, number of devices involved, failure-message diversity, recent churn. Simple model: logistic regression or gradient-boosted trees; even a heuristic score is a fine start.\n- **Check the bench, not just the test:** if failures concentrate on one bench/device, the *infrastructure* is flaky — fix or quarantine the bench.\n- **Actions:** quarantine (keep running, stop blocking), auto-file a bug to the owner with evidence, track time-in-quarantine. **Avoid blind auto-retry** as the fix — it hides real intermittent product bugs (race conditions are bugs too).",
+    "followups": [
+      "How many reruns are enough to call a test flaky?",
+      "A 'flaky' test turns out to be a real race in firmware — how would your system have surfaced that?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "web-01",
+    "area": "Web development",
+    "topic": "FastAPI dashboard API",
+    "question": "Sketch a small FastAPI service for a CI dashboard: get one test run, list runs filtered by status, create a run, and serve a simple page.",
+    "answer": "```python\nfrom typing import Optional\nfrom fastapi import FastAPI, HTTPException, Query\nfrom fastapi.responses import HTMLResponse\nfrom pydantic import BaseModel\n\napp = FastAPI()\nRUNS = {1: {\"id\": 1, \"test\": \"test_attach\", \"status\": \"fail\"}}\n\nclass RunIn(BaseModel):\n    test: str\n    status: str\n\n@app.get(\"/api/v1/runs/{run_id}\")          # path param: which resource\ndef get_run(run_id: int):\n    if run_id not in RUNS:\n        raise HTTPException(status_code=404, detail=\"run not found\")\n    return RUNS[run_id]                     # dict -> JSON response\n\n@app.get(\"/api/v1/runs\")                    # query params: filter/paginate\ndef list_runs(status: Optional[str] = None, limit: int = Query(50, le=200)):\n    rows = [r for r in RUNS.values() if status is None or r[\"status\"] == status]\n    return {\"items\": rows[:limit]}\n\n@app.post(\"/api/v1/runs\", status_code=201)  # JSON body validated by Pydantic\ndef create_run(body: RunIn):\n    rid = max(RUNS) + 1\n    RUNS[rid] = {\"id\": rid, **body.model_dump()}\n    return RUNS[rid]\n\n@app.get(\"/\", response_class=HTMLResponse)\ndef index():\n    return \"<h1>CI dashboard</h1><script>fetch('/api/v1/runs')\" \\\n           \".then(r => r.json()).then(d => document.body.append(JSON.stringify(d)))</script>\"\n```\n- **Path vs query:** path identifies a resource (`/runs/42`); query modifies a collection request (`?status=fail&limit=10`).\n- Type hints drive validation: `/runs/abc`, `?limit=999`, or a body missing `status` all return **422** automatically. Run with `uvicorn app:app --reload`; interactive docs at `/docs`.",
+    "followups": [
+      "How would you add pagination to list_runs?",
+      "How would you serve a real HTML/JS frontend instead of an inline string?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "web-02",
+    "area": "Web development",
+    "topic": "Flask vs FastAPI",
+    "question": "Same endpoint in Flask — and when would you pick Flask vs FastAPI for an internal CI tool?",
+    "answer": "```python\nfrom flask import Flask, jsonify, request, abort\napp = Flask(__name__)\nRUNS = {1: {\"id\": 1, \"test\": \"test_attach\", \"status\": \"fail\"}}\n\n@app.get(\"/api/v1/runs/<int:run_id>\")       # converter = path param type\ndef get_run(run_id):\n    run = RUNS.get(run_id)\n    if run is None:\n        abort(404)\n    return jsonify(run)\n\n@app.get(\"/api/v1/runs\")\ndef list_runs():\n    status = request.args.get(\"status\")      # query param\n    return jsonify(items=[r for r in RUNS.values() if status in (None, r[\"status\"])])\n```\n- **Flask:** WSGI, minimal, huge ecosystem, Jinja2 templates (`render_template`) make server-rendered dashboards easy; validation is manual (or via an extension). JSON body via `request.get_json()`.\n- **FastAPI:** ASGI, async-friendly, Pydantic validation from type hints, automatic OpenAPI docs — great for JSON APIs consumed by scripts/other services.\n- For a quick internal dashboard either is fine; I'd choose FastAPI if other tools (Jenkins jobs, bots) will call it as an API, Flask if it's mostly server-rendered pages. Consistency with the team's existing stack matters more than either.",
+    "followups": [
+      "What does WSGI vs ASGI mean in practice?",
+      "How would you protect this internal tool (auth)?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "web-03",
+    "area": "Web development",
+    "topic": "HTTP status codes",
+    "question": "For a CI results API, which status codes would you return for: success, created, a bad filter value, not logged in, no permission, missing build, duplicate upload, rate-limited, and a database outage?",
+    "answer": "| Situation | Code |\n|---|---|\n| Successful read | **200 OK** |\n| Created a result (POST) | **201 Created** (+ `Location` header) |\n| Deleted, nothing to return | **204 No Content** |\n| Malformed request / bad filter | **400 Bad Request** (FastAPI uses **422** for validation errors) |\n| Not authenticated | **401 Unauthorized** |\n| Authenticated but not allowed | **403 Forbidden** |\n| Build doesn't exist | **404 Not Found** |\n| Duplicate / state conflict | **409 Conflict** |\n| Too many requests | **429 Too Many Requests** (+ `Retry-After`) |\n| Bug in your server | **500 Internal Server Error** |\n| Dependency down / overloaded | **503 Service Unavailable** |\n\n- 4xx = client should change the request; 5xx = server problem, often retryable. Clients (e.g. Jenkins steps) should retry **5xx/429 with backoff**, not 4xx.",
+    "followups": [
+      "401 vs 403 — what's the difference?",
+      "Should a 'no results matched your filter' query return 404?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "web-04",
+    "area": "Web development",
+    "topic": "REST resource design",
+    "question": "Design REST endpoints for builds, the test runs within a build, and failure triage annotations.",
+    "answer": "- **Resources are nouns, methods are verbs:**\n  - `GET /api/v1/builds?branch=main&status=failed` — list/filter\n  - `GET /api/v1/builds/{build_id}` — one build\n  - `GET /api/v1/builds/{build_id}/test-runs` — runs in a build (nested = ownership)\n  - `GET /api/v1/test-runs/{run_id}` — direct access too, avoid deep nesting\n  - `POST /api/v1/test-runs/{run_id}/annotations` — add a triage note/label\n  - `PATCH /api/v1/annotations/{id}` — partial update; `DELETE` to remove\n- Plural nouns, consistent casing, IDs in the path, **filters/sort/pagination in the query**.\n- Return the created resource (201) and consistent JSON shapes; include links/IDs so clients can navigate.\n- Actions that aren't CRUD (e.g. \"retrigger\") can be modelled as a sub-resource: `POST /builds/{id}/retries`.",
+    "followups": [
+      "How would a Jenkins job report results to this API?",
+      "When would nesting resources become a problem?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "web-05",
+    "area": "Web development",
+    "topic": "Idempotency",
+    "question": "Jenkins posts test results to your API, but sometimes times out and retries. What is idempotency, which HTTP methods have it, and how do you avoid duplicate results?",
+    "answer": "- **Idempotent:** doing the request N times leaves the server in the same state as doing it once.\n  - **GET, HEAD, OPTIONS** — safe (no state change) and idempotent.\n  - **PUT** (replace at a known URL) and **DELETE** — idempotent (a second DELETE may return 404, but the state is the same).\n  - **POST** — not idempotent; **PATCH** — not guaranteed idempotent.\n- **Fix for retries:**\n  - Use a natural key: `PUT /builds/{build_id}/test-runs/{test_name}/attempts/{n}` — re-sending overwrites the same record.\n  - Or an **Idempotency-Key** header on POST: store key → response; replay the stored response on retry.\n  - Back it with a **unique constraint** in the DB (e.g. `UNIQUE(build_id, test_name, attempt)`) so races can't create duplicates.\n- Same idea for webhooks/event streams (e.g. Gerrit events): delivery can be at-least-once, so handlers should be idempotent.",
+    "followups": [
+      "Is 'safe' the same as 'idempotent'?",
+      "How long would you keep idempotency keys?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "web-06",
+    "area": "Web development",
+    "topic": "Pagination, versioning, errors",
+    "question": "The test-runs endpoint can return millions of rows, other teams' scripts depend on it, and errors are inconsistent. How do you handle pagination, versioning, and the error format?",
+    "answer": "**Pagination**\n- *Offset/limit* (`?offset=100&limit=50`): simple, but slow at large offsets and rows shift if new data arrives.\n- *Cursor/keyset*: return `next_cursor` (e.g. last seen id); stable and index-friendly:\n```sql\nSELECT id, started_at FROM test_runs\nWHERE id < :cursor          -- last id from previous page\nORDER BY id DESC\nLIMIT 50;\n```\n- Cap `limit`, and always use a deterministic `ORDER BY` (tie-break on a unique column).\n\n**Versioning**\n- Version in the path (`/api/v1/...`) is explicit and easy; headers are an alternative.\n- **Additive changes** (new optional fields, new endpoints) are non-breaking; removing/renaming fields or changing types needs a new version + deprecation window.\n\n**Error format** — one consistent JSON shape, e.g.\n```json\n{\"error\": {\"code\": \"BUILD_NOT_FOUND\", \"message\": \"build 123 not found\", \"request_id\": \"abc-1\"}}\n```\n- RFC 9457 \"problem details\" (`application/problem+json`) is a standard option. Never leak stack traces.",
+    "followups": [
+      "Why does OFFSET get slow on large tables?",
+      "How do you know who still uses v1 before removing it?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "web-07",
+    "area": "Web development",
+    "topic": "SQL basics: GROUP BY, HAVING, JOINs",
+    "question": "Refresh: write a query for the failure rate per owning team over the last 7 days, only for teams with at least one failure. Then explain the JOIN types.",
+    "answer": "```sql\nSELECT t.owner_team,\n       COUNT(*)                     AS runs,\n       SUM(r.status = 'fail')       AS fails,\n       ROUND(AVG(r.status = 'fail'), 3) AS fail_rate\nFROM test_runs r\nJOIN tests t ON t.id = r.test_id\nWHERE r.started_at >= datetime('now', '-7 days')   -- SQLite; Postgres: now() - interval '7 days'\nGROUP BY t.owner_team\nHAVING SUM(r.status = 'fail') > 0\nORDER BY fail_rate DESC;\n```\n- Logical order: **FROM/JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT**. `WHERE` filters rows before grouping; `HAVING` filters groups after aggregation.\n- `status = 'fail'` evaluates to 1/0 in SQLite/MySQL; in Postgres use `COUNT(*) FILTER (WHERE status='fail')` or `SUM(CASE WHEN ... THEN 1 ELSE 0 END)`.\n- **JOINs:** INNER (matches only), LEFT (all left rows, NULLs where no match), RIGHT (mirror), FULL OUTER (all rows from both), CROSS (every pair).\n- **Trap:** putting a condition on the right table in `WHERE` turns a LEFT JOIN into an inner join. \"Tests with no runs this week\":\n```sql\nSELECT t.name\nFROM tests t\nLEFT JOIN test_runs r\n  ON r.test_id = t.id AND r.started_at >= datetime('now', '-7 days')\nWHERE r.id IS NULL;\n```",
+    "followups": [
+      "Why can't you use a SELECT alias in WHERE?",
+      "COUNT(*) vs COUNT(col) — difference?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "web-08",
+    "area": "Web development",
+    "topic": "SQL: flake rate + indexes",
+    "question": "Write a query for the flake rate per test over the last 7 days, where a run is flaky if the same test both failed and passed on the same commit. What index would you add?",
+    "answer": "```sql\nWITH per_commit AS (\n  SELECT r.test_id, r.commit_sha,\n         MAX(r.status = 'fail') AS any_fail,\n         MAX(r.status = 'pass') AS any_pass\n  FROM test_runs r\n  WHERE r.started_at >= datetime('now', '-7 days')\n  GROUP BY r.test_id, r.commit_sha\n)\nSELECT t.name,\n       COUNT(*)                   AS commits,\n       SUM(any_fail AND any_pass) AS flaky_commits,\n       ROUND(1.0 * SUM(any_fail AND any_pass) / COUNT(*), 3) AS flake_rate\nFROM per_commit p\nJOIN tests t ON t.id = p.test_id\nGROUP BY t.name\nHAVING COUNT(*) >= 5          -- ignore tests with too little data\nORDER BY flake_rate DESC;\n```\n- A commit that **consistently fails** is not flaky (real failure) — that's why we need both a fail *and* a pass on the same commit. `1.0 *` avoids integer division.\n- Postgres: `bool_or(status='fail')` and `now() - interval '7 days'`.\n- **Indexes:** B-tree on the filter/join columns, e.g. `CREATE INDEX idx_runs_started_test ON test_runs(started_at, test_id);` so the 7-day range is an index range scan, not a full scan. For per-test lookups (`WHERE test_id = ? AND started_at >= ?`) prefer `(test_id, started_at)`: **equality columns first, range column last** (leftmost-prefix rule).\n- Indexes cost write speed and storage; verify with `EXPLAIN` / `EXPLAIN QUERY PLAN`.",
+    "followups": [
+      "How would you compute this per week for a trend chart?",
+      "Why might the planner ignore your index?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "fw-01",
+    "area": "Firmware and wireless",
+    "topic": "What a firmware build involves",
+    "question": "At a high level, what happens in a firmware build, and what artifacts come out of it?",
+    "answer": "- **Cross-compilation:** code is built on a host (e.g. a Mac or Linux server) for a **different target** CPU/architecture (often an ARM core in an SoC or modem), using a **cross toolchain**: compiler, assembler, linker, binutils, target C library.\n- **Linking for hardware:** a **linker script** places code and data at specific memory addresses (flash/ROM, RAM regions) — unlike a desktop app, there may be no OS loader doing it for you.\n- **Artifacts:** an **ELF** with symbols (for debugging/crash symbolication), a **map file** (what landed where, sizes), and stripped **binary/hex images** to flash. Often several images are **signed** and **packaged** into a bundle, with a manifest/version.\n- **Variants:** many build configurations (product, chip revision, debug vs release), so one change can mean many builds.\n- **CI cares about:** build time, caching, artifact storage/traceability (which commit → which image), size budgets (map file diffs), and reproducibility.",
+    "followups": [
+      "Why keep the unstripped ELF if you flash the stripped binary?",
+      "How would you alert when a change grows the image size unexpectedly?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "fw-02",
+    "area": "Firmware and wireless",
+    "topic": "Make and CMake",
+    "question": "What's the difference between Make and CMake, and how does cross-compilation fit in?",
+    "answer": "- **Make** runs rules `target: prerequisites` + recipe; it rebuilds a target when a prerequisite is newer (timestamps), giving incremental builds. `-j N` runs jobs in parallel.\n```make\nCC      = arm-none-eabi-gcc\nOBJCOPY = arm-none-eabi-objcopy\nCFLAGS  = -mcpu=cortex-m4 -O2 -Wall\nOBJS    = main.o radio.o\n\nall: fw.bin\nfw.bin: fw.elf\n\t$(OBJCOPY) -O binary $< $@\nfw.elf: $(OBJS) link.ld\n\t$(CC) $(CFLAGS) -T link.ld -o $@ $(OBJS)\n%.o: %.c\n\t$(CC) $(CFLAGS) -c $< -o $@\n```\n- **CMake** is a **meta build system**: `CMakeLists.txt` describes targets; CMake *generates* Makefiles or Ninja files. Cross-compiling uses a **toolchain file** (`-DCMAKE_TOOLCHAIN_FILE=...`) setting `CMAKE_SYSTEM_NAME`, `CMAKE_C_COMPILER`, etc. Prefer out-of-source builds (`cmake -S . -B build`).\n- **CI-relevant failure modes:** missing dependency declarations → stale incremental builds that pass locally but not clean; parallel-build races (`-j`) that show up as **intermittent** build failures; environment leaking into builds.",
+    "followups": [
+      "Why might a build pass incrementally but fail from clean?",
+      "How would you speed up a slow firmware build in CI?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "fw-03",
+    "area": "Firmware and wireless",
+    "topic": "Reproducible builds",
+    "question": "What is a reproducible build, why does it matter for firmware CI, and what typically breaks it?",
+    "answer": "- **Definition:** same source + same toolchain + same build instructions → **bit-for-bit identical** output.\n- **Why it matters:** proves an image came from a given commit (supply-chain/security), lets you trust caching of artifacts by content hash, makes crash symbolication and bisecting reliable, and means \"rebuild to debug\" really reproduces the shipped binary.\n- **Common sources of non-determinism:** embedded timestamps (`__DATE__`/`__TIME__`, archive timestamps), absolute build paths in debug info, file-system ordering of inputs, locale/timezone, unpinned toolchain or dependency versions, environment variables, random seeds/UUIDs.\n- **Fixes:** pinned toolchains (e.g. in container images), `SOURCE_DATE_EPOCH` for timestamps, path remapping (`-ffile-prefix-map`), sorted inputs, hermetic builds that only see declared inputs.\n- **Verify:** build twice (different machine/dir/time) and compare hashes; tools like `diffoscope` explain differences.",
+    "followups": [
+      "Where would you put a reproducibility check in the pipeline?",
+      "How does reproducibility help a build cache?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "fw-04",
+    "area": "Firmware and wireless",
+    "topic": "Why firmware CI is different",
+    "question": "How is CI for cellular firmware different from CI for a typical web service?",
+    "answer": "- **Long builds, many variants:** large codebases and multiple product/chip configurations make each pipeline expensive → caching, incremental builds, smart test selection matter a lot.\n- **Real hardware is scarce:** meaningful tests need devices on **test benches** (device + host + RF equipment/network simulators), often in a **device farm**. Hardware time is the bottleneck, so scheduling, prioritisation, and batching matter.\n- **Flashing:** each test cycle loads an image onto the device; flashing takes time and can fail or leave a device in a bad state → recovery automation.\n- **More sources of flakiness:** RF conditions, timing, bench hardware wear, cables/USB, simulator state — so separating **infra failures from product failures** is a core problem (and a natural fit for the AI/automation work in this role).\n- **Testing pyramid:** host-side unit tests and simulation run fast and wide on every change; hardware-in-the-loop runs on a narrower, prioritised set (presubmit subset, nightly full suites).\n- **Higher cost of escapes:** firmware ships to devices in users' hands; updates are slower than redeploying a server.",
+    "followups": [
+      "How would you decide which tests run presubmit vs nightly?",
+      "With limited benches, how do you find which commit in a batch broke a test?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "fw-05",
+    "area": "Firmware and wireless",
+    "topic": "Device farm reliability",
+    "question": "About 8% of hardware test jobs fail during flashing or bench setup, not in the test itself. How would you approach this?",
+    "answer": "- **Classify first:** tag failures by stage (allocate → flash → boot → test → teardown) so infra failures aren't reported as product failures. Measure per bench, device type, firmware branch, time.\n- **Find concentration:** if a few benches account for most failures, it's hardware (cable/USB hub/power/fixture). If it's one branch, it may be a real boot/flash regression.\n- **Health checks before tests:** verify device reachable, battery/power, correct boot state; fail fast and **reschedule on another bench** rather than burning the test.\n- **Automated recovery:** controllable power (power-cycle), re-flash via a recovery mode, retry **infra steps** with limits (not the test assertions).\n- **Auto-quarantine** benches whose failure rate crosses a threshold; open a ticket for the lab; return them after passing health checks.\n- **Scheduling:** device leasing/locking so two jobs don't grab one bench; priorities (presubmit over nightly); timeouts to free stuck devices.\n- **Track it:** infra failure rate as a dashboard metric with alerts (ties to anomaly detection).",
+    "followups": [
+      "What data would you log per job to make this analysable?",
+      "When is retrying harmful?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "fw-06",
+    "area": "Firmware and wireless",
+    "topic": "Gerrit + Jenkins pipelines",
+    "question": "Explain how a change flows through Gerrit code review and Jenkins CI, and where presubmit checks fit.",
+    "answer": "- **Gerrit:** you push commits to `refs/for/<branch>`; each commit becomes a **change**, identified by a `Change-Id` footer (added by a commit-msg hook). Amending and pushing again creates a new **patch set** of the same change.\n- **Labels/votes:** typically **Code-Review** (−2..+2) from humans and **Verified** (−1..+1) from CI; submit rules (configurable per project) usually require Code-Review +2 and Verified +1.\n- **Jenkins:** jobs/pipelines (a `Jenkinsfile` with stages) run on **agents** selected by labels (e.g. agents attached to hardware benches). A Gerrit integration (e.g. the Gerrit Trigger plugin) listens for events like *patchset-created* or *change-merged*, runs the job, and posts back a Verified vote + comment with links.\n- **Presubmit** (per patch set): fast build + unit/host tests + a small hardware subset — gate on Verified. **Postsubmit/nightly:** full builds, full device suites, perf; failures are found later and need **bisecting** across merged changes.\n- Useful automation targets: smart test selection for presubmit, auto-triage comments on Gerrit, flaky-test quarantine so Verified −1 is trustworthy.",
+    "followups": [
+      "What's the difference between a change and a patch set?",
+      "Why might you not want every presubmit to use real hardware?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "fw-07",
+    "area": "Firmware and wireless",
+    "topic": "LTE vs 5G NR",
+    "question": "In simple terms, what is the difference between LTE and 5G NR?",
+    "answer": "- Both are **3GPP** cellular standards. **LTE** is the 4G radio technology; **5G NR** (\"New Radio\") is the 5G air interface, first specified in 3GPP Release 15.\n- **Both use OFDM-based** waveforms. LTE uses OFDMA downlink and SC-FDMA uplink; NR uses CP-OFDM both directions (with DFT-spread OFDM as an uplink option).\n- **NR is more flexible:** scalable subcarrier spacing (\"numerology\" — 15 kHz like LTE, and wider like 30/60/120 kHz), wider channel bandwidths, and much wider frequency range — **FR1** (sub-7 GHz) and **FR2** (mmWave), the latter using beamforming.\n- **Deployment modes:** **NSA** (non-standalone) uses an LTE anchor and LTE core for control; **SA** (standalone) uses the 5G core.\n- **Goals:** higher throughput, lower latency, and support for more use cases than LTE.\n- **Why the CI team cares:** the modem firmware must support both (plus fallbacks), across many bands/carriers — a big test matrix.",
+    "followups": [
+      "What does NSA vs SA mean for a phone's modem?",
+      "Why does mmWave need beamforming?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "fw-08",
+    "area": "Firmware and wireless",
+    "topic": "Baseband / modem",
+    "question": "What does the baseband processor (modem) in a phone do, and how is it different from the application processor?",
+    "answer": "- The **application processor (AP)** runs the OS and apps. The **baseband processor / modem** handles cellular communication and runs its **own firmware**, typically on a real-time OS, because radio protocols have strict timing.\n- **What it does (high level):**\n  - **Physical layer:** modulation/demodulation, channel coding/decoding, MIMO, synchronisation, measuring signal quality.\n  - **Protocol stack:** link layers that schedule, retransmit, and secure data (MAC, RLC, PDCP), and control signalling (RRC) for connection setup and handovers.\n  - **Network procedures (NAS):** registering/attaching to the network, authentication with the SIM credentials, mobility.\n- The **RF front end/transceiver** converts between baseband digital signals and actual radio frequencies (filters, amplifiers, antennas).\n- The AP and modem talk over an internal interface; data packets and control messages cross it.\n- **For firmware CI:** modem firmware is tested against network simulators and real networks across bands and conditions — slow, hardware-bound tests.",
+    "followups": [
+      "Why does the modem need a real-time OS?",
+      "What would a 'handover' failure look like in test logs, roughly?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "fw-09",
+    "area": "Firmware and wireless",
+    "topic": "OFDM at a high level",
+    "question": "Explain OFDM at a high level and why it is robust to multipath.",
+    "answer": "- **Idea:** split one wide channel into **many narrow subcarriers**, each carrying a slow stream of symbols in parallel (LTE uses 15 kHz spacing).\n- **Orthogonal:** subcarriers are spaced at exactly 1/(symbol duration), so their spectra overlap but **don't interfere** at the receiver's sampling points — efficient use of spectrum without guard bands between subcarriers.\n- **Multipath robustness:**\n  - Each subcarrier is narrow, so it sees roughly **flat fading** → easy per-subcarrier equalisation (one complex multiply), instead of a complex equaliser for the whole wideband channel.\n  - Symbols are long, and a **cyclic prefix** (a copy of the symbol's end placed at its start), longer than the channel's delay spread, absorbs echoes → no inter-symbol interference.\n- **Efficient implementation:** IFFT at the transmitter, FFT at the receiver.\n- **OFDMA:** different users get different groups of subcarriers/time slots (resource blocks of 12 subcarriers in LTE/NR).\n- **Downsides:** high peak-to-average power ratio (one reason LTE uplink uses SC-FDMA, kinder to phone power amplifiers) and sensitivity to frequency offset/Doppler, which break orthogonality.",
+    "followups": [
+      "What is the cost of the cyclic prefix?",
+      "Why is high PAPR a problem for a phone?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "be-01",
+    "area": "Behavioral and resume",
+    "topic": "Why Apple",
+    "question": "Why Apple?",
+    "answer": "**What a strong answer covers** (60–90 s, specific, honest):\n- **Something specific about Apple** that connects to *you* — e.g. tight hardware/software integration, shipping at massive device scale, the quality bar, privacy as a design principle, Apple building its own wireless/cellular technology. (Check the latest public news on Apple's modem and wireless efforts before the interview; don't overstate.)\n- **A personal link:** a product or engineering experience that made you care about reliability at scale. Use a true story.\n- **Bridge to the role:** what you want to learn (firmware CI at scale, AI for automation) and what you bring (Python, automation, QA/infra experience — from your own resume).\n\n**Skeleton:** \"I'm drawn to Apple because ___ [specific]. In my ___ [project/job] I saw ___ [what you learned about reliability/quality]. This internship lets me ___ [learn/contribute], and my experience with ___ fits because ___.\"\n\n**Pitfalls:** generic praise (\"I love the iPhone\"), talking only about brand/prestige, reciting the job description, saying anything about the team's internal work you can't know.",
+    "followups": [
+      "What Apple product or feature do you admire from an engineering standpoint, and why?",
+      "Where else are you interviewing / what would make you choose us?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-02",
+    "area": "Behavioral and resume",
+    "topic": "Why CI infrastructure / this team",
+    "question": "Why do you want to work on CI and release infrastructure — and on firmware CI for cellular specifically?",
+    "answer": "**What a strong answer covers:**\n- **Why infra:** leverage — one improvement to the pipeline speeds up every engineer; you like making systems reliable, measurable, and automated. Back it with a real moment from your experience (e.g. a flaky pipeline, a manual process you automated, QA work where you saw the cost of slow feedback).\n- **Why this team:** firmware + hardware-in-the-loop makes CI genuinely hard (scarce benches, long builds, flaky RF environments), and the role's focus on **AI/automation for reliability** matches your interests. Mention the skills overlap honestly: Python, ML, web dashboards, Git/Gerrit/Jenkins — only the ones you've actually used.\n- **What you hope to learn:** firmware build/test at scale, how cellular software ships.\n\n**Skeleton:** \"In ___ I experienced ___ [pain of slow/flaky pipelines or manual QA]. Fixing ___ showed me ___ [impact]. Firmware CI interests me because ___. I'd like to apply ___ [your ML/automation experience] to ___.\"\n\n**Likely probes:** what does \"good CI\" look like to you; what metric would you improve first; have you used Jenkins/Gerrit (answer honestly — \"I've used ___; Gerrit I've read about and ___\").\n\n**Pitfalls:** implying infra is a fallback; claiming wireless expertise you don't have; no concrete example.",
+    "followups": [
+      "What metric would you look at first to judge a CI system's health?",
+      "Which of the listed tools have you actually used, and how deeply?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-03",
+    "area": "Behavioral and resume",
+    "topic": "A time you disagreed",
+    "question": "Tell me about a time you disagreed with a teammate or lead on a technical decision.",
+    "answer": "**What a strong answer covers:** a real technical disagreement, how you **understood their view**, used **data/experiments** rather than opinion, the outcome (even if you didn't \"win\"), and the relationship afterwards.\n\n**STAR skeleton:**\n- **S:** project ___, who was involved, what was being decided.\n- **T:** your role / why it mattered (risk, cost, deadline).\n- **A:** what you proposed vs. what they proposed; how you asked questions to understand their constraints; the evidence you gathered (prototype, benchmark, data); how you escalated or committed.\n- **R:** decision + measurable outcome; what you learned; how you'd handle it next time.\n\n**Likely probes:** What was their strongest argument? What data did you have? What if you'd been overruled — did you commit? Would you decide the same today?\n\n**Pitfalls:** making the other person look foolish, a disagreement that's really about personalities, no resolution, \"I was right\" with no learning. \"Disagree and commit\" is a fine ending if true.",
+    "followups": [
+      "What did you do once the decision went against you?",
+      "How did the relationship look afterwards?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-04",
+    "area": "Behavioral and resume",
+    "topic": "A failure",
+    "question": "Tell me about a time you failed or made a mistake.",
+    "answer": "**What a strong answer covers:** a **real** failure with real consequences (not a humblebrag), clear **personal ownership**, how you contained the impact, the root cause, and a **concrete change** you made so it doesn't recur (e.g. a test, check, automation, or process).\n\n**STAR skeleton:**\n- **S/T:** what you were responsible for, at ___.\n- **A (the mistake):** what you did/didn't do — say \"I\".\n- **A (recovery):** how you noticed, who you told and how fast, how you fixed it.\n- **R:** impact (honest), root cause, the specific safeguard you added, evidence it worked since.\n\n**Likely probes:** How did you find out? Why didn't existing checks catch it? What would you do differently on day one? What did your manager say?\n\n**Pitfalls:** \"I work too hard\"; blaming others or tooling; a failure with no lesson; a story that raises serious judgement concerns without a strong recovery. For a CI role, a story where the fix was **adding automation/guardrails** lands well.",
+    "followups": [
+      "How did you communicate it to others?",
+      "What check would have caught it earlier?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-05",
+    "area": "Behavioral and resume",
+    "topic": "Automating manual work",
+    "question": "Tell me about a time you automated away manual work.",
+    "answer": "This is a **core story for this role** — prepare it well.\n\n**What a strong answer covers:** the manual process and who suffered from it; how you **quantified** the cost; your design (and alternatives you rejected); rollout and adoption; **measured results** (hours saved, error rate, cycle time); maintenance.\n\n**STAR skeleton:**\n- **S:** \"At ___, the team spent ~___ [hours/week] doing ___ by hand, which caused ___ [errors/delays].\"\n- **T:** your goal and success metric.\n- **A:** how you scoped it, tech choices (Python/scripts/CI job/dashboard), edge cases, how you got users to trust/adopt it, testing.\n- **R:** numbers (before/after), what broke, what you'd improve.\n\n**Likely probes:** Why that approach? What did YOU build vs. the team? How did you validate it was correct? What happens when it fails — who gets alerted? Is it still used?\n\n**Pitfalls:** no numbers (estimate honestly and say it's an estimate), automating something nobody needed, ignoring adoption/maintenance.",
+    "followups": [
+      "How did you know the automation was producing correct results?",
+      "What would you do differently if you rebuilt it?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-06",
+    "area": "Behavioral and resume",
+    "topic": "Debugging an intermittent issue",
+    "question": "Tell me about a time you debugged an intermittent or hard-to-reproduce issue.",
+    "answer": "**What a strong answer covers:** a **systematic** method — reproduce, gather data, form hypotheses, test them one at a time, narrow down — not luck. Very relevant to flaky tests and device farms.\n\n**STAR skeleton:**\n- **S:** the symptom, how often it happened (e.g. \"1 in ~20 runs\"), impact.\n- **T:** your responsibility.\n- **A:** how you increased reproducibility (loops, stress, varying timing/environment), what you instrumented/logged, hypotheses you **ruled out** and how, how you found the root cause (race, resource leak, environment, timeout, test-order dependence…).\n- **R:** fix, how you verified it (N runs with zero failures), what guard you added (test, monitor, alert).\n\n**Likely probes:** How did you know it was fixed and not just rarer? What was the first hypothesis and why was it wrong? Did you consider just adding a retry? How did you correlate failures with environment?\n\n**Pitfalls:** \"I added a retry and it went away\" as the ending; vague \"I looked at logs\"; skipping verification.",
+    "followups": [
+      "What's your general playbook for a test that fails 2% of the time?",
+      "How did you rule out the test itself vs. the system under test?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-07",
+    "area": "Behavioral and resume",
+    "topic": "Working with another team's tooling",
+    "question": "Tell me about a time you depended on or integrated with another team's tool or service.",
+    "answer": "**What a strong answer covers:** learning an unfamiliar system quickly (docs, code, asking good questions), respecting the owners' constraints, **communication** when something was missing or broken, and a collaborative outcome (e.g. you contributed a fix/doc upstream rather than hacking around it).\n\n**STAR skeleton:**\n- **S:** what tool/service, which team owned it, why you needed it.\n- **T:** what you had to deliver and by when.\n- **A:** how you ramped up; the problem you hit (bug, missing feature, unclear docs); how you raised it (repro, clear ask); workaround vs. upstream fix; how you kept your own work moving.\n- **R:** outcome for both teams; what you learned about cross-team work.\n\n**Likely probes:** How did you prioritise your request against their roadmap? What did you do while blocked? Did you contribute back?\n\n**Pitfalls:** blaming the other team; silent workarounds that create hidden tech debt. This matters in CI roles — CI teams constantly integrate with build, lab, and product teams' tools.",
+    "followups": [
+      "How do you write a good bug report for another team?",
+      "When is a local workaround acceptable?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-08",
+    "area": "Behavioral and resume",
+    "topic": "Handling ambiguity",
+    "question": "Tell me about a time you had an ambiguous task with unclear requirements. How did you proceed?",
+    "answer": "Highly relevant: this internship is literally \"**explore** how AI and automation can improve\" pipelines — open-ended by design.\n\n**What a strong answer covers:** how you **clarified the goal** (who is the user, what problem, what does success look like), made explicit **assumptions**, delivered a **small prototype early** for feedback, and iterated.\n\n**STAR skeleton:**\n- **S:** the vague ask and why it was vague.\n- **T:** what you needed to decide.\n- **A:** questions you asked and to whom; how you defined a measurable success criterion; the smallest useful version you built; feedback loops; what you deliberately left out.\n- **R:** what shipped, how it was measured, how the scope evolved.\n\n**Likely probes:** What did you do when no one could answer your question? How did you decide what *not* to do? How often did you check in?\n\n**Pitfalls:** waiting for perfect requirements; or charging ahead for weeks without feedback.\n\n**Bonus:** be ready to say how you'd approach *this* internship's first two weeks (talk to engineers about pain points, get data on failures/flakes, pick one measurable problem, ship a prototype in shadow mode).",
+    "followups": [
+      "If you started on this team Monday, what would you do in week one?",
+      "How do you decide when a prototype is 'good enough' to show?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-09",
+    "area": "Behavioral and resume",
+    "topic": "Project deep-dive: Nokia QA",
+    "question": "Walk me through your QA work at Nokia. What did you own, and what was the impact?",
+    "answer": "Fill this in from **your own** experience; don't stretch what you did.\n\n**What a strong answer covers (2–3 minutes):**\n- **Context:** product/system under test (at the level you're allowed to share), team size, your role.\n- **What YOU owned** vs. the team — be precise (\"I wrote/designed/maintained ___\").\n- **Technical depth:** test types (manual, automated, regression, system/integration), frameworks and languages, how tests ran (CI? schedules? lab equipment?), how failures were triaged.\n- **Impact with numbers:** tests automated, time saved, bugs found, flakiness reduced, coverage gained.\n- **Link to this role:** QA → CI is a natural bridge (test reliability, triage, flaky tests, possibly telecom/network context — only if true).\n\n**Likely probes:** How were test failures triaged, and how much was flaky/infra vs real bugs? Hardest bug you found? How did you decide what to automate? What would you change about their test process? What tools (Jenkins, Git, Gerrit, Python)?\n\n**Pitfalls:** listing tasks without outcomes; disclosing confidential details; overclaiming team results as yours.",
+    "followups": [
+      "What fraction of failures were real product bugs vs test/infra issues?",
+      "If you could redesign their test pipeline, what would you change first?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-10",
+    "area": "Behavioral and resume",
+    "topic": "Project deep-dive: Oracle microservices",
+    "question": "Tell me about the microservices work at Oracle. Walk me through the architecture and your contribution.",
+    "answer": "Use **your own** details; sketch the architecture on the whiteboard/paper if asked.\n\n**What a strong answer covers:**\n- **Architecture at a glance:** the services you touched, how they communicate (REST/gRPC/queues), data stores, deployment (containers, orchestration, CI/CD) — at a shareable level.\n- **Your piece:** the feature/service/fix you owned, the design decisions you made and the alternatives you considered.\n- **Reliability & testing:** how you tested it (unit/integration/contract tests), how it was deployed, monitoring/alerts, an incident or bug you handled.\n- **Results:** latency/throughput, error rate, delivery time, adoption — with numbers if you have them.\n- **Bridge:** CI/CD pipelines, API design, and debugging distributed systems carry over directly to building CI tooling and dashboards.\n\n**Likely probes:** Why microservices there rather than a monolith? How did services handle failures/retries (idempotency, timeouts)? How was it deployed and rolled back? What would you do differently? What was the hardest bug?\n\n**Pitfalls:** buzzwords without understanding (be ready to explain anything you name); confidential details; overclaiming.",
+    "followups": [
+      "How did a change of yours get from commit to production?",
+      "How did you debug an issue that spanned multiple services?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-11",
+    "area": "Behavioral and resume",
+    "topic": "Project deep-dive: jobpoll",
+    "question": "Tell me about jobpoll. What does it do, how is it built, and what was hard?",
+    "answer": "Fill in from **what you actually built**; interviewers love personal automation projects because they show initiative — and this one maps closely to CI automation (polling, scheduling, scraping/APIs, dedupe, notifications).\n\n**What a strong answer covers:**\n- **Problem & user:** what manual pain it removes, who uses it (just you? others?).\n- **Architecture:** data sources (APIs vs scraping), scheduling/polling interval, storage, deduplication of postings, notifications/UI, deployment.\n- **Hard parts:** rate limits and being a polite client, changing page formats/brittle parsers, retries/backoff, idempotency, failure alerting, any ML/LLM component and how you validated it.\n- **Results:** numbers (postings tracked, time saved, applications sent) — estimates are fine if labelled as such.\n- **Ethics/ToS:** be ready to say how you respect sites' terms and rate limits.\n\n**Likely probes:** Why poll instead of webhooks/events? How do you detect duplicates? What happens when a source changes format? How do you test it? If 100 people used it, what breaks first? What would you do differently?\n\n**Pitfalls:** can't explain a design choice; ignoring failure modes; overstating usage.",
+    "followups": [
+      "How do you know when a scraper/poller silently breaks?",
+      "How would you scale it from you to many users?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "be-12",
+    "area": "Behavioral and resume",
+    "topic": "Project deep-dive: hackathons (e.g. CalHacks)",
+    "question": "Tell me about a hackathon project, like your CalHacks finance/agentic project. What did you build and what was your part?",
+    "answer": "Use **your own** details; be precise about who did what in a team of several.\n\n**What a strong answer covers:**\n- **Problem and demo:** one sentence on what it does and for whom.\n- **Your role:** the components you personally built (e.g. backend, agent logic, data integration, UI).\n- **Agentic/LLM design (if applicable):** what tools the agent could call, how you constrained it, how you handled wrong or hallucinated outputs — especially important for a **finance** use case where errors are costly; how you evaluated quality beyond \"the demo worked\".\n- **Trade-offs under time pressure:** what you mocked or skipped, and what you'd harden for production (testing, guardrails, security of keys/data).\n- **Outcome:** what you shipped, any result/prize (only if true), what you learned.\n- **Bridge:** the same guardrail thinking applies to LLM triage in CI — structured output, grounding, human-in-the-loop.\n\n**Likely probes:** How did you stop the agent from taking a wrong action? How would you test it? What was the hardest bug at 3 a.m.? What would it take to productionise? What did teammates do?\n\n**Pitfalls:** describing the team's work as yours; no discussion of failure modes; demo-only thinking.",
+    "followups": [
+      "What guardrails would you add before letting the agent act on real money?",
+      "How would you evaluate the agent systematically?"
+    ],
+    "level": "core"
+  }
+]

@@ -1,0 +1,953 @@
+{
+ "intro": "Practice set for the Apple Firmware CI/CD internship (Cellular SW & Technologies, Wireless Technologies and Ecosystems): Python tooling around Git, Gerrit and Jenkins, plus AI and automation for test and release pipelines. Parts A–C are Apple-reported questions, mostly reported as titles only, so each statement is the most likely reading; Part D is written for this team's day-to-day work. Clarifying an ambiguous prompt is part of what's graded: state your assumptions out loud.",
+ "order": [
+  "B1",
+  "D2",
+  "D3",
+  "F1",
+  "F2",
+  "F3",
+  "G5",
+  "G3",
+  "G1",
+  "G2",
+  "G4",
+  "A4",
+  "D4",
+  "B6",
+  "A10",
+  "D6",
+  "D1",
+  "D5",
+  "E7",
+  "E6",
+  "E4",
+  "E5",
+  "E8",
+  "E2",
+  "E1",
+  "E10",
+  "E9",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "E3",
+  "A11",
+  "A13",
+  "B5",
+  "B2",
+  "A1",
+  "A2",
+  "A7",
+  "A3",
+  "A14",
+  "A8",
+  "A9",
+  "A5",
+  "A6",
+  "A12",
+  "B3",
+  "B4",
+  "C1",
+  "C2",
+  "C3",
+  "C4",
+  "C5",
+  "C6",
+  "C7"
+ ],
+ "parts": {
+  "A": "Part A: DSA",
+  "B": "Part B: Practical Python (likely for a CI/tools team)",
+  "C": "Part C: Concurrency (low priority for this round)",
+  "D": "Part D: CI/CD tooling (written for this team)",
+  "E": "Part E: Python & scripting drills (from the team checklist)",
+  "F": "Part F: Parsing CI formats (production style)",
+  "G": "Part G: AI/ML for CI automation (team-specific, pure Python)",
+  "H": "Part H: Python classes and OOP (team-specific, pure Python)"
+ },
+ "problems": [
+  {
+   "id": "A1",
+   "title": "Zero Out Duplicates and Sort an Array",
+   "difficulty": "easy",
+   "pattern": "Hashing / Counting",
+   "secondary": [
+    "Sorting"
+   ],
+   "statement": "Given an integer array, keep the first occurrence of each value and replace every later duplicate with `0`. Then sort the array in ascending order.",
+   "example": "`[4, 2, 4, 1, 2, 4]` → `[4, 2, 0, 1, 0, 0]` → `[0, 0, 0, 1, 2, 4]`",
+   "clarify": [
+    "Sorted ascending or descending?",
+    "Are the zeros moved to the end instead?",
+    "Are negative values allowed?",
+    "Modify in place or return a new list?"
+   ],
+   "approach": "Use a `seen` set during one pass, then `sort()`. Time O(n log n). Follow-up: if the values are bounded, use counting sort for O(n)."
+  },
+  {
+   "id": "A2",
+   "title": "Sort and Merge String Lists by Length",
+   "difficulty": "easy",
+   "pattern": "Two Pointers",
+   "secondary": [
+    "Sorting",
+    "Heap / Top-K"
+   ],
+   "statement": "You get two lists of strings, each already sorted by length. Merge them into one list sorted by length. Ties break lexicographically.",
+   "example": "`[\"a\", \"bb\", \"ccc\"]`, `[\"d\", \"ee\"]` → `[\"a\", \"d\", \"bb\", \"ee\", \"ccc\"]`",
+   "clarify": [
+    "Should duplicates be kept?",
+    "Are the inputs actually pre-sorted, or should you sort them first?"
+   ],
+   "approach": "Two-pointer merge comparing `(len(s), s)` tuples, O(n + m). If the inputs are unsorted, use `sorted(a + b, key=lambda s: (len(s), s))`. Follow-up: k lists → `heapq.merge(*lists, key=...)`."
+  },
+  {
+   "id": "A3",
+   "title": "Merge Two Strings Using the Longest Edge Overlap",
+   "difficulty": "medium",
+   "pattern": "String Processing",
+   "secondary": [],
+   "statement": "Given strings `a` and `b`, find the longest suffix of `a` that is also a prefix of `b`, and merge them with the overlap counted once. Then try `b` before `a`, and return the shorter result.",
+   "example": "`a = \"abcde\"`, `b = \"cdefg\"` → overlap `\"cde\"` → `\"abcdefg\"`",
+   "clarify": [
+    "If both orders give the same length, which one wins?",
+    "Can either string be empty?",
+    "What if one string is fully contained in the other?"
+   ],
+   "approach": "The brute force checks every overlap length, O(n·m). The optimal method builds the KMP prefix function on `b + \"#\" + a`: the last value of that array is the overlap length, giving O(n + m). Also handle the case where `b in a`."
+  },
+  {
+   "id": "A4",
+   "title": "Decode Run-Length Encoding Where a Missing Count Means One",
+   "difficulty": "easy",
+   "pattern": "String Processing",
+   "secondary": [
+    "Stack / Parsing"
+   ],
+   "statement": "Decode a string where each character may be followed by a count. A missing count means 1, and counts can have several digits.",
+   "example": "`\"a3bc12d\"` → `\"aaab\" + \"c\" * 12 + \"d\"`",
+   "clarify": [
+    "Does the count come before or after the character?",
+    "Can the characters themselves be digits?",
+    "What happens with malformed input, like a leading digit or a count of zero?",
+    "Should huge counts be streamed instead of built in memory?"
+   ],
+   "approach": "Use a single index pointer: read the character, then read all digits that follow. Build a list of chunks and `\"\".join` them. Follow-up: write a generator or iterator version that doesn't materialise the whole string (LeetCode 604 style)."
+  },
+  {
+   "id": "A5",
+   "title": "Count Nodes Reachable Only Through Left and Right Links",
+   "difficulty": "easy",
+   "pattern": "Graph BFS / DFS",
+   "secondary": [
+    "Linked List"
+   ],
+   "statement": "You are given one node in a chain. Each node has `left` and `right` pointers. Count every node reachable by following only those links.",
+   "example": "A chain `1 ⇄ 2 ⇄ 3`, starting from node `2` → `3`",
+   "clarify": [
+    "Can the chain loop back on itself?",
+    "Can links be inconsistent, for example `a.right = b` but `b.left != a`?"
+   ],
+   "approach": "For a clean chain, walk left to the end, then walk right while counting. For the robust version, run BFS or DFS over both links with a visited set (keyed by `id(node)` if nodes aren't hashable). That handles cycles and broken links. Time O(n)."
+  },
+  {
+   "id": "A6",
+   "title": "Find the K Closest Pairs in a Sorted Array",
+   "difficulty": "medium",
+   "pattern": "Heap / Top-K",
+   "secondary": [
+    "Two Pointers"
+   ],
+   "statement": "(Best guess at the question.) Given a sorted array, return the `k` pairs `(i, j)` with `i < j` that have the smallest difference `nums[j] - nums[i]`.",
+   "example": "`[1, 3, 4, 9]`, `k = 2` → `(3, 4)` with difference 1, then `(1, 3)` with difference 2",
+   "clarify": [
+    "Return indices or values?",
+    "How are ties in the difference broken?"
+   ],
+   "approach": "Seed a min-heap with all adjacent pairs `(nums[i+1] - nums[i], i, i+1)`. When you pop `(i, j)`, push `(i, j+1)`. Pop k times. Time O((n + k) log n). The same expansion idea as LeetCode 373, and related to LeetCode 719."
+  },
+  {
+   "id": "A7",
+   "title": "Top Three Scores per Student",
+   "difficulty": "easy",
+   "pattern": "Heap / Top-K",
+   "secondary": [
+    "Hashing / Counting"
+   ],
+   "statement": "Given records `[student_id, score]`, return each student's top three scores (or their average), sorted by student id.",
+   "example": "`[[1, 90], [1, 80], [2, 70], [1, 95], [1, 60]]` → student 1: `[95, 90, 80]`, student 2: `[70]`",
+   "clarify": [
+    "What if a student has fewer than three scores?",
+    "Do duplicate scores count separately?",
+    "What output format is wanted: the scores or their average?"
+   ],
+   "approach": "Use `defaultdict(list)` and keep a min-heap of size 3 per student (`heappush`, then `heappop` when the size exceeds 3). Time O(n log 3), which is O(n). Mention that `heapq.nlargest(3, scores)` is the one-liner."
+  },
+  {
+   "id": "A8",
+   "title": "Days Until Poison Stops Spreading (K-of-8-Neighbours Rule)",
+   "difficulty": "medium",
+   "pattern": "Graph BFS / DFS",
+   "secondary": [
+    "Simulation"
+   ],
+   "statement": "A grid has poisoned (`1`) and healthy (`0`) plants. Each day, every healthy plant with at least `K` poisoned plants among its 8 neighbours becomes poisoned, and all plants update at the same time. Return the number of days until nothing changes.",
+   "example": "`[[1, 1, 0], [0, 0, 0]]`, `K = 2` → day 1 poisons `(1, 0)` and `(1, 1)`; day 2 poisons `(0, 2)` and `(1, 2)`; nothing changes after that → `2`",
+   "clarify": [
+    "Are updates simultaneous?",
+    "Is there an empty-cell type?",
+    "Does the grid wrap around at the edges?",
+    "Could K be 0?"
+   ],
+   "approach": "The naive method re-scans the whole grid each day, O(days · R · C). The better method keeps `count[r][c]` of poisoned neighbours. Each day, only cells newly poisoned yesterday update their neighbours' counts, and any healthy neighbour that reaches `K` joins the next frontier, like level-by-level BFS. This is LeetCode 994 plus LeetCode 289-style neighbour counting."
+  },
+  {
+   "id": "A9",
+   "title": "Unit Ratio Queries with Modular Answers",
+   "difficulty": "hard",
+   "pattern": "Union-Find",
+   "secondary": [
+    "Graph BFS / DFS",
+    "Math / Number Theory"
+   ],
+   "statement": "You get conversions like `(\"km\", \"m\", 1000)` and `(\"m\", \"cm\", 100)`, all with integer ratios. Answer queries like \"how many cm in 1 km?\" modulo `1e9 + 7`. Units from unrelated families (say, length vs. mass) return `-1`.",
+   "example": "Conversions `[(\"km\", \"m\", 1000), (\"m\", \"cm\", 100)]`, query `(\"km\", \"cm\")` → `100000`",
+   "clarify": [
+    "Can a query ask for a smaller unit in terms of a bigger one (a fraction)?",
+    "Can conversions be inconsistent?",
+    "What about a unit that never appears?"
+   ],
+   "approach": "Use weighted union-find, or build a graph and BFS/DFS from each unit family's root while storing each unit's ratio to the root. The answer is `ratio[a] * inverse(ratio[b]) mod p`, with the inverse computed as `pow(x, p - 2, p)` (Fermat's little theorem). This is LeetCode 399 with modular arithmetic instead of floats."
+  },
+  {
+   "id": "A10",
+   "title": "Smallest Valid Task Order from Dependency Pairs",
+   "difficulty": "medium",
+   "pattern": "Topological Sort",
+   "secondary": [
+    "Heap / Top-K"
+   ],
+   "statement": "Given `n` tasks and pairs `(a, b)` meaning `a` must come before `b`, return the lexicographically smallest valid order, or `[]` if there's a cycle.",
+   "example": "`n = 4`, pairs `[(1, 0), (2, 0), (3, 1)]` → `[2, 3, 1, 0]`",
+   "clarify": [
+    "Are tasks numbered 0 to n − 1?",
+    "Can there be duplicate pairs?"
+   ],
+   "approach": "Kahn's algorithm with a min-heap instead of a queue: always pop the smallest task whose in-degree is 0. If the output has fewer than `n` tasks, there's a cycle. Time O((V + E) log V)."
+  },
+  {
+   "id": "A11",
+   "title": "Snapshotable Key-Value Store",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [
+    "Binary Search"
+   ],
+   "statement": "Implement `put(key, val)`, `get(key, snap_id)`, `delete(key)` and `snapshot()`, where `snapshot()` returns an id. `get` returns the value as of that snapshot.",
+   "example": "`put(\"a\", 1)`, `snapshot()` → `0`, `put(\"a\", 2)`, `get(\"a\", 0)` → `1`",
+   "clarify": [
+    "What does `get` return for a key that didn't exist (or was deleted) at that snapshot?",
+    "Do snapshot ids start at 0?"
+   ],
+   "approach": "For each key, store a list of `(snap_id, value)` pairs, recording deletes as a tombstone. `get` uses `bisect_right` on the snapshot ids, O(log s) per call. Follow-ups: memory compaction, and what changes if snapshots can be deleted. Related to LeetCode 1146 and 981."
+  },
+  {
+   "id": "A12",
+   "title": "Earliest Bus Arrival",
+   "difficulty": "hard",
+   "pattern": "Shortest Path",
+   "secondary": [],
+   "statement": "(Best guess at the question.) You get bus trips with departure and arrival times between stops. Starting at stop `S` at time `t`, find the earliest time you can reach stop `D`.",
+   "example": "Stops are numbered. Trips `[[0, 1, 1, 3], [1, 2, 4, 6], [0, 2, 2, 9]]` (each `[from, to, depart, arrive]`), start at stop `0` at time `0`, target stop `2` → `6`: ride 0→1 arriving at 3, then 1→2 departing at 4 and arriving at 6",
+   "clarify": [
+    "Is the goal the earliest arrival or the fewest buses? (Fewest buses is LeetCode 815: BFS over routes.)",
+    "Can you board a bus that departs at exactly the time you arrive?"
+   ],
+   "approach": "Time-dependent Dijkstra, where the \"distance\" is the arrival time. From a stop reached at time `x`, you can only take buses departing at or after `x`."
+  },
+  {
+   "id": "A13",
+   "title": "Deck of Cards with Shuffle and Draw",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [
+    "Randomized / Probability"
+   ],
+   "statement": "Design `Card` and `Deck` with `shuffle()`, `draw(n)`, `reset()` and `remaining()`.",
+   "example": "A fresh deck has 52 cards; `draw(5)` returns 5 cards and `remaining()` then returns 47",
+   "clarify": [
+    "What happens when you draw more cards than remain: raise an error, or return fewer?",
+    "What order is a fresh or reset deck in?"
+   ],
+   "approach": "Implement Fisher–Yates yourself: for `i` from `n − 1` down to `1`, swap `i` with `randint(0, i)`. Be ready to explain why swapping with *any* index is biased: `n^n` equally likely outcomes can't map evenly onto `n!` permutations. Use `@dataclass(frozen=True)` for `Card` and an `Enum` for the suit."
+  },
+  {
+   "id": "A14",
+   "title": "Consistent Hashing Ring",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [
+    "Binary Search"
+   ],
+   "statement": "Implement `add_node(name)`, `remove_node(name)` and `get_node(key)` for a consistent hashing ring with virtual nodes.",
+   "example": "With nodes `A`, `B`, `C`, each key maps to the first node point clockwise from the key's hash; removing `B` only moves the keys that were on `B`",
+   "clarify": [
+    "How many virtual nodes per server?",
+    "Which hash function?",
+    "What does `get_node` return when the ring is empty?"
+   ],
+   "approach": "Keep a sorted list of `(hash, node)` entries. `get_node` hashes the key, does `bisect_right`, and wraps around to index 0 at the end. Use a stable hash like `hashlib.md5`, not Python's `hash()`, which is randomised per process. Each node gets V virtual points: O(log N) lookup, O(V log N) add/remove. Follow-up: explain which keys move when a node is added."
+  },
+  {
+   "id": "B1",
+   "title": "Parse and Summarise HTTP Access Logs",
+   "difficulty": "medium",
+   "pattern": "String Processing",
+   "secondary": [
+    "Hashing / Counting"
+   ],
+   "statement": "Given log lines like `127.0.0.1 - - [10/Oct/2026:13:55:36] \"GET /api/x HTTP/1.1\" 200 512`, report the requests per status code, the top 5 endpoints, the error rate (4xx/5xx), and the total bytes.",
+   "example": "Three lines with statuses 200, 404 and 200 → requests per status `{200: 2, 404: 1}`, error rate `1/3`",
+   "clarify": [
+    "How should malformed lines be handled?",
+    "How are ties among the top endpoints broken?",
+    "Is the error rate over all lines or only valid ones?"
+   ],
+   "approach": "Use `re` with named groups, skip malformed lines without crashing (and count them), and aggregate with `Counter`. Process the file line by line with a generator so you never load it all into memory. Practise a variant with build/test logs too: failures per test, and flaky tests that both pass and fail on the same commit."
+  },
+  {
+   "id": "B2",
+   "title": "Store Open-Hours Query",
+   "difficulty": "medium",
+   "pattern": "Intervals / Sweep Line",
+   "secondary": [
+    "Binary Search"
+   ],
+   "statement": "Store hours vary by weekday, can have split shifts (9–12 and 14–18), and can run overnight (22:00–02:00). Implement `is_open(day, time)`.",
+   "example": "Friday hours `22:00–02:00` → `is_open(\"Sat\", \"01:30\")` is `True`",
+   "clarify": [
+    "Is a store open at the exact closing minute?",
+    "How are 24-hour stores written?",
+    "Does Sunday night wrap into Monday?"
+   ],
+   "approach": "Normalise everything to minutes in the week (0–10079), and split an overnight window into two intervals (or wrap modulo the week). Store sorted intervals and use `bisect` for the lookup. Edge cases: a close time exactly at the boundary, the Sunday→Monday wraparound, and 24-hour stores."
+  },
+  {
+   "id": "B3",
+   "title": "Natural-Month Date Comparison",
+   "difficulty": "medium",
+   "pattern": "Math / Number Theory",
+   "secondary": [],
+   "statement": "Decide whether date B is at least one \"natural month\" after date A.",
+   "example": "A = Jan 31, B = Feb 28 (non-leap year) → `True`, because Jan 31 + 1 month clamps to Feb 28",
+   "clarify": [
+    "What exactly is one month after Jan 31? (Clamp to the end of the month.)",
+    "Are leap years handled?"
+   ],
+   "approach": "Define the rule first: Jan 31 + 1 month = Feb 28/29 (clamp to the end of the month). Use `calendar.monthrange` and handle leap years. Write test cases before the code."
+  },
+  {
+   "id": "B4",
+   "title": "Refactor Rock-Paper-Scissors for Config and Ties",
+   "difficulty": "easy",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "You're handed hard-coded if/else rock-paper-scissors code. Refactor it so the rules come from configuration (for example, adding Lizard and Spock) and ties are handled cleanly.",
+   "example": "With the classic rules, `winner(\"rock\", \"scissors\")` → `\"rock\"`; with the same move → a tie",
+   "clarify": [
+    "What should invalid moves do?",
+    "How is a tie reported?"
+   ],
+   "approach": "Use a `beats: dict[str, set[str]]` table, validate input, and keep functions pure so they're testable. Explain how a new move is added with zero code changes."
+  },
+  {
+   "id": "B5",
+   "title": "HTML Parser: Build the Element Tree and Query with DFS",
+   "difficulty": "medium",
+   "pattern": "Stack / Parsing",
+   "secondary": [
+    "Tree Traversal / BST"
+   ],
+   "statement": "Parse a simplified HTML string into a tree of elements (tag, children, text), then implement `find_all(tag)` and `get_text()` using DFS.",
+   "example": "`\"<div><p>Hi</p><p>there</p></div>\"` → `find_all(\"p\")` finds 2 elements; `get_text()` → `\"Hithere\"`",
+   "clarify": [
+    "Are there attributes?",
+    "Self-closing tags?",
+    "Unclosed or mismatched tags?",
+    "How is whitespace handled?"
+   ],
+   "approach": "Clarifying is the point of this question. Tokenise with a regex for `<tag>`, `</tag>` and text. Keep a stack of open elements: an open tag creates a child and pushes it, and a close tag pops after checking the name matches. Use DFS for the queries."
+  },
+  {
+   "id": "B6",
+   "title": "Robust Socket Message Reader",
+   "difficulty": "medium",
+   "pattern": "Simulation",
+   "secondary": [],
+   "statement": "Messages are framed with a 4-byte big-endian length followed by the payload. `recv()` returns arbitrary chunks. Implement `read_message()`.",
+   "example": "Chunks `[b\"\\x00\\x00\", b\"\\x00\\x05he\", b\"llo\"]` → message `b\"hello\"`",
+   "clarify": [
+    "What if the connection closes mid-message?",
+    "Can one chunk contain several messages?",
+    "Are zero-length messages allowed?"
+   ],
+   "approach": "Buffer into a `bytearray` and loop until you have 4 bytes, then until you have the full payload. Handle several messages arriving in one chunk, a connection closing mid-message (raise an error), and a zero-length message. Unpack the length with `struct.unpack(\">I\", ...)`. Test it by simulating `recv` with a list of byte chunks."
+  },
+  {
+   "id": "C1",
+   "title": "First Successful Result from Parallel API Calls",
+   "difficulty": "medium",
+   "pattern": "Other (non-coding)",
+   "secondary": [],
+   "statement": "Call several APIs in parallel under a global timeout and return the first successful result.",
+   "approach": "Use `ThreadPoolExecutor` with `as_completed(futures, timeout=T)`. Return the first result without an exception, cancel the rest, and raise if all fail or time runs out."
+  },
+  {
+   "id": "C2",
+   "title": "Thread-Safe Event Tracker over a Sliding Window",
+   "difficulty": "medium",
+   "pattern": "Other (non-coding)",
+   "secondary": [],
+   "statement": "Track events from many threads and answer \"how many in the last N seconds?\".",
+   "approach": "A `deque` of timestamps guarded by a `Lock`, evicting old entries on both record and query. Follow-up: switch to bucketed counters to reduce contention."
+  },
+  {
+   "id": "C3",
+   "title": "LRU with Fewer Recency Writes, plus Concurrent Access",
+   "difficulty": "medium",
+   "pattern": "Other (non-coding)",
+   "secondary": [],
+   "statement": "An LRU cache where reads shouldn't always reorder the list, and many threads use it at once.",
+   "approach": "Only move an entry to the front if it hasn't been touched recently, or batch recency updates. Use a lock (or striped locks) around the structure."
+  },
+  {
+   "id": "C4",
+   "title": "TTL Token Manager under Heavy Concurrent Reads and Writes",
+   "difficulty": "medium",
+   "pattern": "Other (non-coding)",
+   "secondary": [],
+   "statement": "Tokens expire after a TTL; many threads read and renew them concurrently.",
+   "approach": "A read-write lock, or sharding by token id."
+  },
+  {
+   "id": "C5",
+   "title": "Reusable Cyclic Barrier",
+   "difficulty": "medium",
+   "pattern": "Other (non-coding)",
+   "secondary": [],
+   "statement": "Implement a barrier that N threads wait at, and that can be reused round after round.",
+   "approach": "Use a `Condition` plus a generation counter, so threads from the next round can't pass early."
+  },
+  {
+   "id": "C6",
+   "title": "Lock without Built-In Locks",
+   "difficulty": "medium",
+   "pattern": "Other (non-coding)",
+   "secondary": [],
+   "statement": "Implement mutual exclusion for two threads without using a library lock.",
+   "approach": "Peterson's algorithm for two threads, and why it needs memory barriers on modern CPUs."
+  },
+  {
+   "id": "C7",
+   "title": "Thread-Safe Tree Iterator",
+   "difficulty": "medium",
+   "pattern": "Other (non-coding)",
+   "secondary": [],
+   "statement": "Iterate over a tree while other threads may modify it.",
+   "approach": "Either snapshot on creation, or fail fast with a modification counter (like Java's `ConcurrentModificationException`)."
+  },
+  {
+   "id": "D1",
+   "title": "Find the First Bad Commit",
+   "difficulty": "easy",
+   "pattern": "Binary Search",
+   "secondary": [],
+   "statement": "CI ran a test on a range of commits in order, oldest first. Every commit from some point onwards is broken, and every earlier one is fine. Given `results` (`True` = the test failed on that commit), return the index of the first failing commit, or `-1` if none fails. Do it with as few checks as possible.",
+   "example": "`[False, False, True, True]` → `2`",
+   "clarify": [
+    "Is the range guaranteed to be good-then-bad (monotone)?",
+    "What if some commits can't be built and must be skipped (`git bisect skip`)?"
+   ],
+   "approach": "Binary search for the first `True`: O(log n) checks instead of n, which matters when each check is a 30-minute build. This is exactly `git bisect`. Follow-up: with unbuildable commits, the answer becomes a range when skips sit next to the boundary."
+  },
+  {
+   "id": "D2",
+   "title": "Detect Flaky Tests from CI Runs",
+   "difficulty": "easy",
+   "pattern": "Hashing / Counting",
+   "secondary": [],
+   "statement": "You get CI records `[commit, test, result]`, where `result` is `\"pass\"` or `\"fail\"`. A test is **flaky** if it both passed and failed on the same commit. Return the flaky test names, sorted.",
+   "example": "`[[\"c1\", \"t_wifi\", \"pass\"], [\"c1\", \"t_wifi\", \"fail\"], [\"c1\", \"t_bt\", \"fail\"], [\"c2\", \"t_bt\", \"fail\"]]` → `[\"t_wifi\"]`",
+   "clarify": [
+    "Are other results possible (skipped, error)?",
+    "Should the output include how often each test flaked?"
+   ],
+   "approach": "Map `(commit, test)` to the set of results seen; a test is flaky if any of its sets holds both outcomes. One pass, O(n). Follow-up: rank tests by flake rate across commits, and discuss quarantining flaky tests vs fixing them."
+  },
+  {
+   "id": "D3",
+   "title": "Group Test Failures by Error Signature",
+   "difficulty": "medium",
+   "pattern": "String Processing",
+   "secondary": [
+    "Hashing / Counting"
+   ],
+   "statement": "Failure messages differ only in noise: numbers, hex addresses and temporary paths. Normalise each message into a **signature** and return the signatures with their counts, most common first.",
+   "example": "`\"Timeout after 30s on device 0x7f3a\"` and `\"Timeout after 45s on device 0x11bc\"` share the signature `\"Timeout after <N>s on device <HEX>\"`",
+   "clarify": [
+    "Which noise patterns count: hex, decimal numbers, paths, UUIDs, timestamps?",
+    "How are ties in the counts ordered?"
+   ],
+   "approach": "Apply ordered regex substitutions (hex before decimal, so `0x7f3a` isn't half-replaced), then count with `Counter`. This is the first step of automated failure triage; the ML follow-up is clustering similar signatures or asking an LLM to summarise each cluster."
+  },
+  {
+   "id": "D4",
+   "title": "Parse JUnit XML Test Results",
+   "difficulty": "medium",
+   "pattern": "String Processing",
+   "secondary": [
+    "Stack / Parsing"
+   ],
+   "statement": "Jenkins test reports are JUnit XML: `<testsuite>` elements containing `<testcase name=... classname=...>`, where a test case may contain `<failure>`, `<error>` or `<skipped/>`. Parse a report and return the counts of passed, failed, errored and skipped tests, and the full names (`classname.name`) of the failing ones.",
+   "example": "A suite with one passing case and one case containing `<failure message=\"boom\"/>` → passed 1, failed 1, failing `[\"radio.Tests.test_attach\"]`",
+   "clarify": [
+    "Can there be several `<testsuite>` elements under `<testsuites>`?",
+    "Do errors count as failures?"
+   ],
+   "approach": "Use `xml.etree.ElementTree`: `iter(\"testcase\")`, then check for a `failure`, `error` or `skipped` child. Don't parse XML with regex. Mention streaming with `iterparse` for huge reports."
+  },
+  {
+   "id": "D5",
+   "title": "Compare Two Test Runs",
+   "difficulty": "easy",
+   "pattern": "Hashing / Counting",
+   "secondary": [],
+   "statement": "Given two runs as maps from test name to `\"pass\"`/`\"fail\"` (before and after a change), report the tests that are **newly failing**, **fixed**, **still failing**, **added** and **removed**, each sorted.",
+   "example": "before `{\"a\": \"pass\", \"b\": \"fail\"}`, after `{\"a\": \"fail\", \"b\": \"pass\", \"c\": \"pass\"}` → newly failing `[\"a\"]`, fixed `[\"b\"]`, added `[\"c\"]`",
+   "clarify": [
+    "Is a new test that fails \"added\" or \"newly failing\"?",
+    "What output shape is wanted?"
+   ],
+   "approach": "Set operations on the keys, then compare statuses on the intersection. This is the core of a pre-merge gate that blocks a Gerrit change when it introduces new failures."
+  },
+  {
+   "id": "D6",
+   "title": "Minimum Pipeline Time with Parallel Stages",
+   "difficulty": "medium",
+   "pattern": "Topological Sort",
+   "secondary": [
+    "Dynamic Programming"
+   ],
+   "statement": "A Jenkins pipeline has stages with durations and dependencies (`[a, b]` means `b` can start only after `a` finishes). Any number of stages can run in parallel. Return the minimum total time to finish the pipeline, or `-1` if the dependencies contain a cycle.",
+   "example": "durations `{\"build\": 5, \"unit\": 3, \"lint\": 1, \"deploy\": 2}`, edges `[[\"build\", \"unit\"], [\"build\", \"lint\"], [\"unit\", \"deploy\"], [\"lint\", \"deploy\"]]` → `10` (build → unit → deploy)",
+   "clarify": [
+    "Is the number of parallel workers unlimited?",
+    "Can a stage have zero duration?"
+   ],
+   "approach": "Topological order (Kahn), with `finish[v] = duration[v] + max(finish[u] for u before v)`. The answer is the largest finish time: the critical path. Fewer than n stages processed means a cycle. Follow-up: with k workers it becomes a scheduling problem (heuristics)."
+  },
+  {
+   "id": "E1",
+   "title": "Retry Decorator with Arguments",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "Write a decorator factory `retry(times, exceptions)`. The decorated function is re-run when it raises one of `exceptions`, up to `times` attempts in total, and then the last error is re-raised. Any other exception propagates immediately. The wrapper must keep the original function's name and docstring.",
+   "example": "A function that raises `ConnectionError` twice and then returns `\"ok\"`: with `@retry(times=3, exceptions=(ConnectionError,))` the call returns `\"ok\"` after 3 attempts; with `times=2` it raises `ConnectionError`",
+   "clarify": [
+    "Is `times` the total number of attempts or the number of retries?",
+    "Should it wait between attempts (backoff)?",
+    "Which exceptions are worth retrying?"
+   ],
+   "approach": "Three levels: `retry(times, exceptions)` returns `decorator(func)`, which returns `wrapper(*args, **kwargs)` decorated with `functools.wraps(func)`. Loop over attempts, `except exceptions as err:` remembers the error, and re-raise it after the last attempt. Follow-ups: exponential backoff with jitter (inject the sleep function so tests don't really sleep), and only retrying idempotent operations."
+  },
+  {
+   "id": "E2",
+   "title": "Streaming Top Endpoint per Time Window",
+   "difficulty": "medium",
+   "pattern": "Sliding Window",
+   "secondary": [
+    "Hashing / Counting"
+   ],
+   "statement": "Log lines arrive in time order as `\"<epoch_seconds> <endpoint>\"`. Process them one at a time and produce, for each fixed window of `w` seconds (aligned to multiples of `w`) that has at least one request, the window start and its most requested endpoint, with ties broken alphabetically. Never hold more than one window in memory: in Python, write it as a generator.",
+   "example": "`w = 60`, lines `[\"0 /a\", \"10 /b\", \"15 /a\", \"61 /c\"]` → `(0, \"/a\")`, then `(60, \"/c\")`",
+   "clarify": [
+    "Are lines guaranteed to be in time order?",
+    "Should empty windows be reported?",
+    "How are ties broken?"
+   ],
+   "approach": "Keep the current window start and a `Counter`. When a line's window (`t // w * w`) differs from the current one, yield the finished window's winner and start a new counter; flush the last window at the end. Memory is O(distinct endpoints in one window). With `yield`, the caller can stream a multi-gigabyte file."
+  },
+  {
+   "id": "E3",
+   "title": "Merge Sort and Quicksort by Hand",
+   "difficulty": "medium",
+   "pattern": "Sorting",
+   "secondary": [],
+   "statement": "Implement `merge_sort(nums)` (stable; returns a new list) and `quick_sort(nums)` (sorts in place) without using `sorted`, `.sort` or any library sort. Be ready to state the time and space complexity of each.",
+   "example": "`[5, 2, 9, 1, 5, 6]` → `[1, 2, 5, 5, 6, 9]`",
+   "clarify": [
+    "Must the sort be stable?",
+    "In place or a new list?",
+    "Are there many duplicate values?"
+   ],
+   "approach": "Merge sort: split in half, sort each half, merge with `<=` so equal items keep their order. O(n log n) time, O(n) extra space. Quicksort: partition around a pivot (Lomuto or Hoare), then recurse on both sides. Expected O(n log n), worst case O(n²) with bad pivots (sorted input with a first-element pivot), so pick a random or median-of-three pivot. Three-way partitioning handles many duplicates."
+  },
+  {
+   "id": "E4",
+   "title": "Token-Bucket Rate Limiter",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [
+    "Simulation"
+   ],
+   "statement": "Implement `RateLimiter(capacity, refill_per_sec)` with `allow(t)`, called for each request at time `t` seconds (non-decreasing). The bucket starts full, refills continuously at `refill_per_sec` tokens per second up to `capacity`, and each allowed request uses one token.",
+   "example": "capacity 2, refill 1 per second: `allow(0)` → `True`, `allow(0)` → `True`, `allow(0)` → `False`, `allow(1)` → `True`",
+   "clarify": [
+    "Does the bucket start full?",
+    "Is time given in seconds as a float?",
+    "Does a rejected request use a token?"
+   ],
+   "approach": "Store `tokens` and `last`. On each call, refill `tokens = min(capacity, tokens + (t - last) * rate)`, set `last = t`, and allow if `tokens >= 1` (subtract 1). O(1) per call. Compare with a fixed window (bursts at window edges) and a sliding-window log (exact but O(requests) memory). Follow-ups: thread safety, and a shared limiter across machines (Redis)."
+  },
+  {
+   "id": "E5",
+   "title": "Debounced Edge Detector",
+   "difficulty": "medium",
+   "pattern": "Simulation",
+   "secondary": [],
+   "statement": "A digital signal is sampled as `0`/`1` values. Report rising and falling edges, but only once the new level has held for `k` consecutive samples (debouncing), so short glitches are ignored. Return `[index, \"rise\" | \"fall\"]` pairs, where `index` is the sample at which the new level started. The first sample sets the initial level and isn't an edge.",
+   "example": "`[0, 0, 1, 0, 1, 1, 1, 0, 0, 0]`, `k = 3` → `[[4, \"rise\"], [7, \"fall\"]]` (the lone `1` at index 2 is a glitch)",
+   "clarify": [
+    "Does the new level need exactly k samples or at least k?",
+    "What is the initial level?",
+    "Which index is reported: where the change started or where it was confirmed?"
+   ],
+   "approach": "A small state machine: the stable level, plus a candidate level with its start index and run length. A sample equal to the stable level cancels the candidate; a sample matching the candidate extends its run, and reaching `k` confirms the edge. O(n) time, O(1) state, which also suits a streaming or hardware setting."
+  },
+  {
+   "id": "E6",
+   "title": "Decode a Binary Packet Header",
+   "difficulty": "medium",
+   "pattern": "Bit Manipulation",
+   "secondary": [],
+   "statement": "An 8-byte packet header is big-endian: version = high 4 bits of byte 0; type = low 4 bits of byte 0; flags = byte 1 (bit 0 = `ACK`, bit 1 = `SYN`, bit 7 = `URGENT`); length = bytes 2–3 (unsigned 16-bit); sequence number = bytes 4–7 (unsigned 32-bit). Given the header as a hex string, return its fields.",
+   "example": "`\"2183001400000007\"` → version 2, type 1, flags `[\"ACK\", \"SYN\", \"URGENT\"]`, length 20, sequence 7",
+   "clarify": [
+    "Big- or little-endian?",
+    "Which flag bits are defined, and in what order should set flags be listed?",
+    "What should happen with a header shorter than 8 bytes?"
+   ],
+   "approach": "`bytes.fromhex(h)`, then `struct.unpack(\">BBHI\", data)`. Version is `b0 >> 4`, type is `b0 & 0x0F`, and a flag is set when `flags & (1 << bit)` is non-zero. Follow-ups: little-endian (`\"<\"`), network byte order, and validating a checksum field."
+  },
+  {
+   "id": "E7",
+   "title": "Paginated API Fetch with Retries and Rate Limits",
+   "difficulty": "medium",
+   "pattern": "Simulation",
+   "secondary": [],
+   "statement": "An API returns results in pages. Each call gives one of: `{\"status\": 200, \"items\": [...], \"next\": token or null}`, `{\"status\": 429, \"retry_after\": s}`, or `{\"status\": 500}`. Fetch every item, starting from the first page. On 429, wait `retry_after` seconds and retry the same page. On 500, retry the same page after an exponential backoff of 1, 2, 4… seconds, and give up after `max_retries` consecutive 500s on one page. The API is simulated: `responses` is the exact sequence of responses it gives, call by call. Return the items, the total seconds waited and the number of calls.",
+   "example": "Responses `[200 with items [1, 2] and next \"p2\", 429 with retry_after 3, 200 with items [3] and next null]` → items `[1, 2, 3]`, waited `3`, calls `3`",
+   "clarify": [
+    "Do 429s count towards `max_retries`?",
+    "Does the backoff reset after a successful page?",
+    "What is returned on giving up?"
+   ],
+   "approach": "Loop until `next` is null: on 200, extend the items, move to the next token and reset the backoff; on 429, add `retry_after` to the wait; on 500, add the current backoff, double it, and count the failure. Never call `time.sleep` in code under test: inject a sleep function or record the waits. With real `requests`: a `Session`, timeouts on every call, and honouring the `Retry-After` header."
+  },
+  {
+   "id": "E8",
+   "title": "Summarise a CSV of Test Results",
+   "difficulty": "easy",
+   "pattern": "String Processing",
+   "secondary": [
+    "Hashing / Counting"
+   ],
+   "statement": "Parse CSV text with the header `test,suite,status,duration_ms`. Fields may be quoted and may contain commas. Return per-suite stats (total tests, failed tests, average duration rounded to 1 decimal place) and the name of the slowest test.",
+   "example": "`test,suite,status,duration_ms` / `t1,wifi,pass,120` / `t2,wifi,fail,80` / `\"t3, edge\",bt,pass,200` → wifi: total 2, failed 1, avg 100.0; bt: total 1, failed 0, avg 200.0; slowest `\"t3, edge\"`",
+   "clarify": [
+    "What if two tests tie for slowest?",
+    "Can a row be malformed or missing a duration?"
+   ],
+   "approach": "`csv.DictReader(io.StringIO(text))`. Never split on commas yourself, because quoted fields break that. Aggregate into a dict of per-suite totals, then build the result (and `json.dumps` it if it's going to a dashboard)."
+  },
+  {
+   "id": "E9",
+   "title": "Fix the Mutable-Default and Shallow-Copy Bugs",
+   "difficulty": "easy",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "You're given two buggy functions. `add_tag(tag, tags=[])` appends `tag` and returns the list, but calls leak into each other. `clone_config(cfg, target)` should return a copy of `cfg` with `target` added to its `targets` list, but it changes the original too because it uses `cfg.copy()`. Fix both, and explain each bug.",
+   "example": "Buggy: `add_tag(\"a\")` → `[\"a\"]`, then `add_tag(\"b\")` → `[\"a\", \"b\"]`. Fixed: the second call returns `[\"b\"]`, and `clone_config` leaves the original's `targets` unchanged",
+   "clarify": [
+    "Should `clone_config` deep-copy everything, or only the nested parts it changes?"
+   ],
+   "approach": "Default values are evaluated once, when the function is defined, so every call shares the same list: use `tags=None` and create a new list inside. `dict.copy()` is shallow: the copy and the original share the nested `targets` list. Use `copy.deepcopy(cfg)`, or copy the nested list explicitly. Related: `is` checks identity and `==` checks equality."
+  },
+  {
+   "id": "E10",
+   "title": "Context Manager that Captures Errors",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "Write a context manager `capture(*exc_types)` that suppresses the listed exception types raised inside its `with` block and records them on its `errors` list. Any other exception propagates normally. Implement it as a class with `__enter__`/`__exit__`, and be ready to write it with `contextlib.contextmanager` too.",
+   "example": "`with capture(ValueError) as c: int(\"x\")` → no exception escapes, and `c.errors` holds one `ValueError`; `with capture(ValueError): {}[\"k\"]` → the `KeyError` propagates",
+   "clarify": [
+    "Does `capture()` with no types suppress everything or nothing?",
+    "Should subclasses of the listed types be caught?"
+   ],
+   "approach": "`__enter__` returns `self`. `__exit__(exc_type, exc, tb)` returns `True` to suppress the exception, when `exc_type` is not `None` and `issubclass(exc_type, self.types)`, after appending `exc` to `errors`; otherwise it returns `False` so the exception propagates. With `@contextmanager`: `try: yield recorder` / `except types as e: recorder.errors.append(e)`."
+  },
+  {
+   "id": "F1",
+   "title": "Split a Command Line Like a Shell",
+   "difficulty": "medium",
+   "pattern": "String Processing",
+   "secondary": [
+    "Simulation"
+   ],
+   "statement": "Split a command string into arguments the way a POSIX shell does, without using `shlex`. Whitespace separates arguments. Inside single quotes everything is literal. Inside double quotes a backslash escapes `\"` and `\\`. Outside quotes, a backslash escapes the next character. Quotes can be glued to other text (`--author='Jane Doe'` is one argument). An unterminated quote is an error.",
+   "example": "`git commit -m \"fix: handle \\\"quoted\\\" args\" --author='Jane Doe' file\\ name.txt` → `[\"git\", \"commit\", \"-m\", \"fix: handle \\\"quoted\\\" args\", \"--author=Jane Doe\", \"file name.txt\"]`",
+   "clarify": [
+    "How is an unterminated quote reported?",
+    "Is `\"\"` an empty argument?",
+    "Which characters count as whitespace?"
+   ],
+   "approach": "A character-by-character state machine with states NORMAL, IN_SINGLE and IN_DOUBLE, a current-argument buffer, and a flag for whether an argument has started (so `\"\"` yields an empty argument). This is how real tokenisers are written. In production you'd use `shlex.split`, and you should say so, then explain how it works."
+  },
+  {
+   "id": "F2",
+   "title": "Stage Durations from a Jenkins Console Log",
+   "difficulty": "medium",
+   "pattern": "Stack / Parsing",
+   "secondary": [
+    "String Processing"
+   ],
+   "statement": "A Jenkins console log has an ISO-8601 timestamp at the start of each line (from the Timestamper plugin). A stage starts at a line ending in `[Pipeline] { (NAME)` and ends at the matching `[Pipeline] // stage` line. Stages can be nested, and other lines are noise. Return each stage's name and duration in seconds, in the order the stages started.",
+   "example": "`[2026-11-08T10:00:00Z] [Pipeline] { (Build)`, `[2026-11-08T10:02:30Z] [Pipeline] // stage`, `[2026-11-08T10:02:31Z] [Pipeline] { (Test)`, `[2026-11-08T10:07:31Z] [Pipeline] // stage` → `[[\"Build\", 150], [\"Test\", 300]]`",
+   "clarify": [
+    "What happens to a stage that never closes (the build was aborted)?",
+    "Can two stages share a name?",
+    "Are timestamps always UTC?"
+   ],
+   "approach": "Parse each line with one compiled regex for the timestamp and the marker; turn timestamps into `datetime` with `datetime.fromisoformat` (replace `Z` with `+00:00` before Python 3.11). Use a stack of open stages, because nesting pairs each `// stage` with the latest open stage. Record results by start order. Decide explicitly what to do with unclosed stages, and test malformed lines."
+  },
+  {
+   "id": "F3",
+   "title": "Per-Author Stats from git log --numstat",
+   "difficulty": "medium",
+   "pattern": "String Processing",
+   "secondary": [
+    "Hashing / Counting"
+   ],
+   "statement": "Parse the output of `git log --numstat`: blocks starting with `commit <sha>`, then `Author: Name <email>`, a `Date:` line, an indented message, and then `added<TAB>deleted<TAB>path` lines. Binary files show `-` for both counts. Renames show paths like `src/{old => new}.py`. Return, for each author email, the number of commits, the lines added and deleted, and the number of distinct files touched (using the new path for renames).",
+   "example": "Two commits by `<jane@x.com>` changing `a.py` (`3\\t1\\ta.py`) and then `a.py` and a binary `logo.png` (`2\\t0\\ta.py`, `-\\t-\\tlogo.png`) → jane: 2 commits, 5 added, 1 deleted, 2 files",
+   "clarify": [
+    "Key authors by email or by name?",
+    "Do merge commits (no numstat lines) count as commits?",
+    "How are binary files counted?"
+   ],
+   "approach": "A line-oriented state machine: `commit` starts a new record, `Author:` sets the author, and lines matching `^(\\d+|-)\\t(\\d+|-)\\t(.+)$` are file stats. Resolve renames with a regex on `{old => new}` (also the bare `old => new` form). Aggregate into a dataclass per author. In real tooling, prefer `--format` with a delimiter you control, or `git log -z`, over parsing human-oriented output."
+  },
+  {
+   "id": "G1",
+   "title": "Cluster Failure Logs by Token Similarity",
+   "difficulty": "medium",
+   "pattern": "Hashing / Counting",
+   "secondary": [
+    "String Processing"
+   ],
+   "statement": "Group similar failure messages so an engineer triages one cluster instead of hundreds of logs. Tokenise by lower-casing, splitting on every non-alphanumeric character, and dropping empty and all-digit tokens. Two messages are similar when the Jaccard similarity of their token sets is at least `threshold`. Process messages in order: each joins the first existing cluster whose first message is similar to it; otherwise it starts a new cluster. Return the clusters as lists of message indices.",
+   "example": "`[\"Timeout waiting for modem 3\", \"timeout waiting for modem 7\", \"Assertion failed: rssi > -80\", \"assertion failed: rssi > -95\"]`, threshold `0.6` → `[[0, 1], [2, 3]]`",
+   "clarify": [
+    "What is the similarity of two messages with no tokens at all?",
+    "Compare against the cluster's first message, or every member?"
+   ],
+   "approach": "Jaccard = |A ∩ B| / |A ∪ B| on token sets. The greedy pass is O(n · clusters). Discuss why normalisation (dropping numbers) matters, why greedy order dependence is acceptable for triage, and how you'd scale it: MinHash/LSH to avoid comparing against every cluster, or TF-IDF/embeddings with DBSCAN."
+  },
+  {
+   "id": "G2",
+   "title": "Suggest a Known Bug for a New Failure",
+   "difficulty": "medium",
+   "pattern": "Hashing / Counting",
+   "secondary": [
+    "String Processing"
+   ],
+   "statement": "Past failures are `[text, bug_id]` pairs. For a new failure, suggest the bug of the most similar past failure, or `\"NEW\"` if none is similar enough. Tokenise by lower-casing, splitting on every non-alphanumeric character, and dropping empty and all-digit tokens. Use TF-IDF with `tf = count / tokens in the document` and `idf = ln((1 + N) / (1 + df)) + 1` (N past documents; df = past documents containing the token; computed from past documents only), and cosine similarity. Suggest the best bug if its similarity is at least `threshold`; ties go to the earlier past failure.",
+   "example": "Past `[[\"modem timeout during attach\", \"BUG-1\"], [\"wifi scan crashed\", \"BUG-2\"], [\"modem crashed during attach\", \"BUG-3\"]]`, new `\"attach timeout on modem\"`, threshold `0.3` → `\"BUG-1\"` (similarities ≈ 0.641, 0, 0.374)",
+   "clarify": [
+    "What if the new failure has no tokens?",
+    "Should the new text's own tokens affect idf?"
+   ],
+   "approach": "Build each document's sparse vector as a dict token → tf·idf, then cosine = dot / (‖a‖·‖b‖), treating a zero vector as similarity 0. O(total tokens). Talk about what you'd change in production: embeddings for meaning instead of word overlap, an approximate nearest-neighbour index, and showing the top 3 candidates with scores to a human rather than auto-filing."
+  },
+  {
+   "id": "G3",
+   "title": "Evaluate an Auto-Triage Classifier",
+   "difficulty": "easy",
+   "pattern": "Hashing / Counting",
+   "secondary": [],
+   "statement": "A classifier labels CI failures (for example `infra`, `product`, `flaky`). Given the `actual` and `predicted` labels, return per-label precision and recall (rounded to 3 decimals; 0.0 when the denominator is 0), overall accuracy (rounded to 3), and the number of **release-blocking false positives**: failures predicted `product` (which blocks a release) that weren't actually `product`.",
+   "example": "actual `[infra, product, product, flaky, infra, product]`, predicted `[infra, product, infra, product, infra, product]` → product precision 0.667, recall 0.667; infra precision 0.667, recall 1.0; flaky 0.0 / 0.0; accuracy 0.667; blocking false positives `1`",
+   "clarify": [
+    "Which labels are reported: the union of actual and predicted?",
+    "What does a label that is never predicted get for precision?"
+   ],
+   "approach": "One pass counting true positives, predicted counts and actual counts per label. Then talk through the trade-off: for a label that blocks releases, precision matters more than recall, so you might only auto-block above a high confidence threshold and route the rest to a human."
+  },
+  {
+   "id": "G4",
+   "title": "Flag Anomalous Build Durations",
+   "difficulty": "medium",
+   "pattern": "Sliding Window",
+   "secondary": [
+    "Math / Number Theory"
+   ],
+   "statement": "Nightly build durations (seconds) are in a list. For each index `i ≥ w`, compare `durations[i]` with the previous `w` values: `m` = their median, `MAD` = the median of `|x − m|` over them, and the robust z-score `z = 0.6745 · (durations[i] − m) / MAD`. Flag `i` if `|z| > threshold`. If `MAD` is 0, flag `i` exactly when `durations[i] != m`. Return the flagged indices.",
+   "example": "`[100, 102, 98, 101, 99, 100, 180, 101, 97, 100]`, `w = 5`, threshold `3.5` → `[6]` (the spike scores z ≈ 54; later windows that still contain 180 keep median 100 and MAD 1, so 97 isn't flagged)",
+   "clarify": [
+    "Do anomalies stay in later windows?",
+    "What if the history is shorter than w?"
+   ],
+   "approach": "Median/MAD is robust: one huge spike barely moves it, unlike mean and standard deviation. A straightforward O(n · w log w) recomputation is fine at this size; mention two heaps or a sorted list for O(log w) updates. In production add seasonality (weekends, release weeks), require several consecutive anomalies before alerting, and route alerts to whoever owns the change to avoid alert fatigue."
+  },
+  {
+   "id": "G5",
+   "title": "Validate an LLM Triage Response",
+   "difficulty": "medium",
+   "pattern": "String Processing",
+   "secondary": [],
+   "statement": "An LLM was asked to triage a failure and reply with JSON. Before trusting it, validate the raw response against the log. Strip an optional Markdown code fence (```json … ```). The response must be a JSON object with: `category` in `infra`, `product`, `flaky`, `unknown`; `confidence` a number from 0 to 1; `evidence` a non-empty list of strings, each appearing verbatim in the log; `summary` a string of at most 200 characters. Return whether it's valid and the sorted list of error codes.",
+   "example": "Log `\"E: modem attach timeout after 30s\"`, response `{\"category\": \"infra\", \"confidence\": 0.8, \"evidence\": [\"kernel panic\"], \"summary\": \"Modem timeout\"}` → invalid, errors `[\"evidence_not_in_log\"]` (the model invented evidence)",
+   "clarify": [
+    "What are the exact error codes?",
+    "Is a boolean accepted as a number for confidence?",
+    "Are extra keys allowed?"
+   ],
+   "approach": "`json.loads` inside `try` (a parse failure is one error, and nothing else is checked), then check each field and collect every error instead of stopping at the first. Booleans are a subclass of `int` in Python, so exclude them explicitly. The evidence check is the cheapest hallucination guard there is: never act on a claim the log doesn't contain. Follow-ups: retry once with the validation errors in the prompt, then fall back to `unknown` and a human."
+  },
+  {
+   "id": "H1",
+   "title": "Firmware Version Value Object",
+   "difficulty": "easy",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "Release tooling compares firmware versions like `24.1.3` and `24.1.3-rc.2` all the time, and comparing them as strings is a classic CI bug (`\"24.1.10\" < \"24.1.9\"`). Write an immutable `FirmwareVersion` class with fields `major`, `minor`, `patch` and `rc` (None for a release) and a `parse(text)` classmethod. Versions must sort correctly (a release candidate comes before its release), be usable in sets and as dict keys, print canonically, and refuse to be compared with anything that isn't a version.",
+   "example": "`sorted(map(FirmwareVersion.parse, [\"2.0.0\", \"2.0.0-rc.10\", \"2.0.0-rc.2\", \"1.99.99\"]))` → `1.99.99, 2.0.0-rc.2, 2.0.0-rc.10, 2.0.0`; `FirmwareVersion.parse(\" 1.02.3 \") == FirmwareVersion.parse(\"1.2.3\")` → `True`; `repr(v)` → `FirmwareVersion('1.2.3')`",
+   "clarify": [
+    "Are leading zeros allowed, and is 1.02.3 the same version as 1.2.3?",
+    "How do release candidates order against the release?",
+    "What should comparing a version with a string do?",
+    "Should parse on a subclass return the subclass?"
+   ],
+   "approach": "`@dataclass(frozen=True)` gives you `__init__`, value equality, `__hash__` and immutability (assigning raises `FrozenInstanceError`, a subclass of `AttributeError`). Don't use `order=True`: it would compare `rc` with None. Instead define one `_key()` = `(major, minor, patch, rc is None, rc or 0)`, write `__lt__` that returns `NotImplemented` for non-versions (Python then raises `TypeError`), and let `@functools.total_ordering` fill in the rest. Validate with a `fullmatch` regex on `[0-9]+`, because `int()` alone happily accepts `'+1'`, `' 2'` and `'1_0'`. Write `parse` as a `@classmethod` that returns `cls(...)`, so subclasses get their own type, and build `repr` from `type(self).__name__`. Talking points: the `__eq__`/`__hash__` contract (equal objects must hash equal), why mutable objects shouldn't be hashable, and `__repr__` vs `__str__`."
+  },
+  {
+   "id": "H2",
+   "title": "Validated Job Config Dataclass",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "CI jobs are described by small config dicts (from YAML or JSON) with `name`, `board`, `timeout_s`, `retries`, `tags` and `env`. Turn them into a `JobConfig` class that can't hold an invalid state: validate on every construction, load from a dict with clear errors for unknown or missing keys, export back to a dict, and derive modified copies without changing the original. Raise `ConfigError` (a `ValueError`) with exact messages.",
+   "example": "`JobConfig.from_dict({\"name\": \"a\", \"board\": \"j3\", \"timout_s\": 5})` → `ConfigError(\"unknown key: timout_s\")` (a typo caught, not silently ignored); `cfg.with_overrides(retries=3)` → a new config, `cfg` unchanged; `JobConfig(\"a\", \"j3\", retries=True)` → `ConfigError(\"invalid retries\")`",
+   "clarify": [
+    "Should unknown keys be ignored or rejected?",
+    "Is a bool acceptable where an int is expected?",
+    "Should direct construction validate too, or only loading?",
+    "Should overrides mutate or copy?"
+   ],
+   "approach": "`@dataclass` with `field(default_factory=list)` and `field(default_factory=dict)` for the mutable defaults; a plain `= []` is rejected by dataclasses for exactly the shared-default reason. Put validation in `__post_init__`, so `JobConfig(...)`, `from_dict` and `dataclasses.replace` all go through it. `bool` is a subclass of `int`, so reject it explicitly. `from_dict` is a `@classmethod` alternate constructor: check unknown keys against `dataclasses.fields(cls)` (sorted, for a deterministic message), then the required keys, then copy the incoming lists and dicts so the caller can't mutate your config later. `to_dict` is `dataclasses.asdict` (it deep-copies). `with_overrides` is `dataclasses.replace(self, **changes)` after rejecting unknown names, because `replace` would raise a bare `TypeError`. Follow-ups: `frozen=True` vs defensive copies, pydantic, and how you'd surface every error at once instead of the first."
+  },
+  {
+   "id": "H3",
+   "title": "CI Pipeline with an Abstract Step Class",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "Model a CI pipeline in classes. `Step` is an abstract base class with a `name`, an `allow_failure` flag and an abstract `run(ctx)`. Write two concrete steps, `SetStep` (puts a value into the shared context) and `ShellStep` (fills `{placeholders}` from the context and runs the command through `ctx[\"shell\"]`, failing on a non-zero exit code), and a `Pipeline` that runs its steps in order. A failing step stops the pipeline and the rest are skipped, unless it's allowed to fail. The pipeline must work with step types it has never heard of.",
+   "example": "Steps build, lint (allowed to fail), test and notify, where lint exits 1 and test exits 2 → `{\"ok\": false, \"steps\": [[\"build\", \"passed\"], [\"lint\", \"failed\"], [\"test\", \"failed\"], [\"notify\", \"skipped\"]]}`",
+   "clarify": [
+    "What counts as a step failure: a non-zero exit code only, or any exception?",
+    "Does an allowed failure still show as failed?",
+    "Should skipped steps appear in the report?",
+    "Can two steps share a name?"
+   ],
+   "approach": "`class Step(ABC)` with `@abstractmethod def run(self, ctx)`: instantiating `Step` itself, or a subclass that forgot `run`, raises `TypeError`, which is exactly the guard you want. Subclasses call `super().__init__(name, allow_failure)`. `Pipeline.run` is plain polymorphism: call `step.run(ctx)` inside `try`/`except Exception`, never `isinstance`-switch on concrete types (the tests add a step class you didn't write). `add` validates the type and the name and returns `self` for chaining. `__len__` and `__iter__` make the pipeline feel like a collection. Talking points: abstraction vs interface, the open/closed principle (new step types without editing `Pipeline`), and composition (a pipeline *has* steps) vs inheritance (a shell step *is* a step)."
+  },
+  {
+   "id": "H4",
+   "title": "Self-Registering Test-Result Parsers",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [
+    "String Processing"
+   ],
+   "statement": "Test results arrive as `.json`, `.csv` and TAP (`.tap`) files, and other teams will add formats. Build a plugin system: subclasses of an abstract `ResultParser` register themselves by suffix just by being defined (`class JsonParser(ResultParser, suffix=\".json\")`). `ResultParser.for_file(path)` picks the parser with the longest matching suffix, so `.junit.xml` beats `.xml`. Every parser shares one `summary(text)` method built on its own `parse(text)`.",
+   "example": "`ResultParser.for_file(\"logs/modem.junit.xml\")` → a `JUnitStub` even though `.xml` is also registered; `TapParser().summary(\"1..3\\nok 1 - boot\\nnot ok 2 - attach\\nok 3 - call\")` → `{\"parser\": \"TapParser\", \"passed\": 2, \"failed\": 1, \"failed_tests\": [\"attach\"]}`",
+   "clarify": [
+    "Is suffix matching case-sensitive?",
+    "What happens when two plugins claim the same suffix?",
+    "What should an unknown file type do?",
+    "Can a CSV field contain a comma?"
+   ],
+   "approach": "`__init_subclass__(cls, suffix=None, **kwargs)` runs once per subclass definition: call `super().__init_subclass__(**kwargs)`, reject a missing or duplicate suffix, then store into `ResultParser.registry`. Write through the base class name: `cls.registry = ...` would create a separate dict on the subclass, and the shared lookup would never see it. `for_file` is a `@classmethod` that returns an instance, so it's a factory. `summary` is the template method in the base, and `parse` is the abstract hook. Use the `csv` module for quoting and `json.loads` for JSON, and match TAP lines with an anchored regex. Talking points: why `__init_subclass__` is simpler than a metaclass, the decorator-registry alternative (`@register(\".json\")`), and how this keeps the core closed to edits while open to new formats."
+  },
+  {
+   "id": "H5",
+   "title": "Testable Firmware Flasher with Retries",
+   "difficulty": "medium",
+   "pattern": "Design / Data Structure",
+   "secondary": [],
+   "statement": "A `Flasher` writes a firmware image to a device over a transport (`connect`, `write(chunk)`, `verify()` returning a SHA-256 hex digest, and `close`), retrying transient failures with exponential backoff. Design it to be testable without hardware or real waiting: the transport and the `sleep` function are injected. Always close a connection you opened, retry only `TransportError` (including a checksum mismatch), and when every attempt fails raise `FlashError` chained to the last cause.",
+   "example": "Connect fails once, then succeeds, with `backoff_s=1.0` → `ok after 2`, calls `[connect, connect, write:4, write:4, write:2, verify, close]`, sleeps `[1.0]`; a `RuntimeError` while writing → propagates at once, but `close` is still called",
+   "clarify": [
+    "Which errors are transient and worth retrying?",
+    "Is a checksum mismatch retried?",
+    "Do we sleep after the final failed attempt?",
+    "Should close be called when connect itself failed?"
+   ],
+   "approach": "Constructor injection: `Flasher(transport, *, sleep=time.sleep)`, so tests pass a fake transport and `sleeps.append`, and nothing in the class reaches for globals. Put one attempt in a helper: `connect()`, then `try:` write the chunks and verify, `finally: close()`. Connect sits outside the `try`, because you only close what you opened. Make `ChecksumMismatch` a subclass of `TransportError`, so one `except TransportError` handles both. After failed attempt k (not the last), `sleep(backoff_s * 2 ** (k - 1))`. On the last one, `raise FlashError(...) from err`, so the traceback shows the real cause. Everything else (bugs) propagates immediately. Talking points: fakes vs `unittest.mock`, why injected time makes tests fast and deterministic, adding jitter in production, and an exception hierarchy callers can catch at the right level."
+  }
+ ],
+ "concepts": "Python concepts asked directly: how `list` and `dict` work internally (dynamic array growth, open-addressing hash table), what the GIL means for threads vs. processes, and incremental rehashing to avoid long pauses during a resize.",
+ "skipped": "Skipped (not relevant for a Python round): debounce (JavaScript; LeetCode 2627 if you want it), multi-head attention (ML role), and all system-design and hardware questions.",
+ "team_prep": "**Team prep: Firmware CI/CD (Git, Gerrit, Jenkins, Python, AI/ML, web)**\n\n- **Python for tooling:** `re`, `collections` (`Counter`, `defaultdict`), `pathlib`, `json`, `subprocess` (`run`, `check=True`, timeouts), `argparse`, `logging`, generators for big files, `concurrent.futures` for parallel jobs.\n- **Git:** merge vs rebase, `cherry-pick`, `bisect` (Part D1), `revert` vs `reset`, resolving conflicts, reading `git log --oneline --graph`.\n- **Gerrit:** every change is one commit carrying a `Change-Id`; new versions are patch sets; Code-Review and Verified votes gate submission; CI posts Verified +1/−1 back to the change.\n- **Jenkins:** declarative pipelines in a `Jenkinsfile`, stages and parallel stages (Part D6), agents/nodes, artifacts, triggers from Gerrit, retries and timeouts.\n- **CI concepts:** flaky tests and quarantine (D2), failure triage by signature (D3), test sharding, build caching and hermetic builds, pre-merge vs post-merge testing, finding the culprit commit (D1).\n- **AI/ML for CI:** classifying failures (infrastructure vs product bug), clustering failure logs, predicting flaky tests, using an LLM to summarise a failing build, and how you'd measure whether it actually saves engineers time.\n- **Web:** a small Flask or FastAPI service with a REST endpoint and a dashboard page for test results; HTTP basics (status codes, JSON).\n- **Firmware context:** builds take long and hardware test benches are scarce, so reliability and avoiding wasted runs matter more than raw speed.\n- **Behavioural:** have a story about automating something tedious, debugging a flaky or intermittent issue, and working with another team's tooling.",
+ "parsing_track": [
+  "A4",
+  "B1",
+  "F1",
+  "E8",
+  "D4",
+  "F2",
+  "F3",
+  "D3",
+  "E2",
+  "B6",
+  "E1",
+  "E10",
+  "E9"
+ ],
+ "production_checklist": "**Production checklist: apply it to every parsing problem**\n\n- **Shape:** a pure function `parse(lines) -> result` separate from I/O; a thin `main()` with `argparse` that reads the file and returns a non-zero exit code on failure.\n- **Streaming:** iterate the file line by line (`for line in f`), or `yield` records; never `read()` a multi-gigabyte log.\n- **Types:** `@dataclass` (frozen where possible) for records, type hints on every function, `Enum` for fixed sets like statuses.\n- **Regex:** compile once at module level, anchor with `^…$`, use named groups, and test the pattern on malformed lines.\n- **Bad input:** decide explicitly whether to skip-and-count, collect errors, or raise a custom exception that carries the line number. Never use a bare `except:`.\n- **Logging, not print:** `logging.getLogger(__name__)`, with the level and context (file, line number) in each message.\n- **Encodings and time:** `open(path, encoding=\"utf-8\", errors=\"replace\")` for logs; timezone-aware `datetime` objects.\n- **Tests:** `pytest` with `@pytest.mark.parametrize` over normal, empty, malformed and boundary inputs, plus one larger generated input.\n- **Explain it:** the complexity and memory use, what happens on a 10 GB file, and what you would monitor in production.",
+ "ai_track": [
+  "G5",
+  "G3",
+  "G1",
+  "G2",
+  "G4",
+  "D3",
+  "D2"
+ ],
+ "classes_track": [
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "B4",
+  "E10",
+  "E9"
+ ]
+}

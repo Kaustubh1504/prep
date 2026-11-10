@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public List<List<Long>> safeIntervals(int[][] planets) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "safeIntervals",
+  "notes": "Use null for an unbounded end (-inf / +inf). Endpoints can exceed the int range, so they are Long."
+}

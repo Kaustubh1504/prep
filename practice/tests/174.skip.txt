@@ -1,0 +1,1 @@
+Interactive black-box problem: the solution must call an adaptive runTest(S) oracle and be graded on call count, which the fixed JSON-args harness cannot supply; the statement also asks for an algorithm design, not code.

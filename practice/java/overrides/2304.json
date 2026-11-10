@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\nimport javax.xml.parsers.*;\nimport org.w3c.dom.*;\nimport org.xml.sax.InputSource;\n\nclass Solution {\n    public Map<String, Object> parseJunit(String xml) throws Exception {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "parseJunit",
+  "notes": "Map values: Integer for the four counts and a List<String> for \"failing\". The javax.xml DOM parser is imported for you: parse with DocumentBuilderFactory and new InputSource(new StringReader(xml))."
+}

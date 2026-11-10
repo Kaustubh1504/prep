@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public char checksumChar(String body) {\n        \n        return '0';\n    }\n\n    public boolean isValidCode(String code) {\n        \n        return false;\n    }\n\n    // Return null when a needed dependency cycle makes it impossible.\n    public List<String> enableFeatures(String config, List<String> requested) {\n        \n        return null;\n    }\n\n    // ---- test entry points (keep as is): each test calls one of the methods above by name ----\n    public Object dispatch(String functionName, String arg) {\n        if (functionName.equals(\"checksum_char\")) return checksumChar(arg);\n        if (functionName.equals(\"is_valid_code\")) return isValidCode(arg);\n        throw new IllegalArgumentException(\"unknown function \" + functionName);\n    }\n\n    public Object dispatch(String functionName, String config, List<String> requested) {\n        if (functionName.equals(\"enable_features\")) return enableFeatures(config, requested);\n        throw new IllegalArgumentException(\"unknown function \" + functionName);\n    }\n}\n",
+  "className": "Solution",
+  "method": "dispatch",
+  "notes": "Implement checksumChar, isValidCode and enableFeatures; keep the two dispatch methods, which route each test to them."
+}

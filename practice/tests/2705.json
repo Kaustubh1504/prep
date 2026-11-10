@@ -1,0 +1,304 @@
+{
+ "rank": 2705,
+ "kind": "function",
+ "entry": "exercise",
+ "starter": "import hashlib\nimport time\nfrom typing import Callable\n\n\nclass TransportError(Exception):\n    \"\"\"A transient link failure: worth retrying.\"\"\"\n\n\nclass ChecksumMismatch(TransportError):\n    \"\"\"The device's digest didn't match the image: also worth retrying.\"\"\"\n\n\nclass FlashError(Exception):\n    \"\"\"Flashing failed after every allowed attempt.\"\"\"\n\n\nclass Flasher:\n    def __init__(self, transport, *, chunk_size: int = 4, max_attempts: int = 3,\n                 backoff_s: float = 0.5, sleep: Callable[[float], None] = time.sleep):\n        pass\n\n    def flash(self, image: bytes) -> int:\n        \"\"\"Write and verify the image; return the number of attempts used.\"\"\"\n        pass\n\n\n# ---------------------------------------------------------------------------\n# Provided \u2014 keep this. A fake transport for tests, and the driver the tests call:\n#   exercise(image_hex, fail, options) flashes bytes.fromhex(image_hex) through a FakeTransport and\n#   reports the outcome (other exceptions by type name only), every transport call in order,\n#   and every sleep your Flasher asked for.\n#   fail maps an operation to the call numbers (1-based, counted across attempts) that misbehave:\n#     \"connect\"/\"write\": raise TransportError;  \"verify\": return a wrong digest;\n#     \"write_bug\": raise RuntimeError (a bug, not a transient failure).\n# ---------------------------------------------------------------------------\nimport hashlib\nfrom collections import Counter\nfrom typing import Any, Dict, List\n\n\nclass FakeTransport:\n    def __init__(self, fail: Dict[str, List[int]]):\n        self.fail = fail\n        self.calls: List[str] = []\n        self.counts = Counter()\n        self.data = bytearray()\n\n    def _tick(self, op: str, label: str) -> int:\n        self.counts[op] += 1\n        self.calls.append(label)\n        return self.counts[op]\n\n    def connect(self):\n        n = self._tick(\"connect\", \"connect\")\n        if n in self.fail.get(\"connect\", []):\n            raise TransportError(f\"connect #{n} failed\")\n        self.data = bytearray()\n\n    def write(self, chunk: bytes):\n        n = self._tick(\"write\", f\"write:{len(chunk)}\")\n        if n in self.fail.get(\"write_bug\", []):\n            raise RuntimeError(f\"driver bug on write #{n}\")\n        if n in self.fail.get(\"write\", []):\n            raise TransportError(f\"write #{n} failed\")\n        self.data += chunk\n\n    def verify(self) -> str:\n        n = self._tick(\"verify\", \"verify\")\n        if n in self.fail.get(\"verify\", []):\n            return \"0\" * 64\n        return hashlib.sha256(bytes(self.data)).hexdigest()\n\n    def close(self):\n        self.calls.append(\"close\")\n\n\ndef exercise(image_hex: str, fail: Dict[str, List[int]], options: Dict[str, Any]) -> Dict[str, Any]:\n    transport, sleeps = FakeTransport(fail), []\n    try:\n        flasher = Flasher(transport, sleep=sleeps.append, **options)\n        outcome = f\"ok after {flasher.flash(bytes.fromhex(image_hex))}\"\n    except FlashError as err:\n        cause = type(err.__cause__).__name__ if err.__cause__ else None\n        outcome = f\"FlashError: {err} (cause: {cause})\"\n    except Exception as err:\n        outcome = type(err).__name__\n    return {\"outcome\": outcome, \"calls\": transport.calls, \"sleeps\": sleeps}\n",
+ "compare": "exact",
+ "notes": "Flasher(transport, chunk_size, max_attempts, backoff_s, sleep): raise ValueError if chunk_size or max_attempts is below 1. flash(image) raises ValueError(\"empty image\") for empty bytes before touching the transport. Each attempt: connect(), write the image in chunk_size pieces, then verify() must equal hashlib.sha256(image).hexdigest(), otherwise raise ChecksumMismatch(\"checksum mismatch\"). close() is called exactly once after every successful connect, even when a write or verify fails, and never when connect fails. TransportError (including ChecksumMismatch) is retried: after failed attempt k, call sleep(backoff_s * 2 ** (k - 1)), but never after the last attempt. When all attempts fail, raise FlashError(f\"gave up after {max_attempts} attempts: {last error}\") (the message is checked) chained from the last error with raise ... from. Any other exception propagates immediately with no retry. Return the number of attempts used. Use the injected sleep, never time.sleep directly. FakeTransport and exercise are provided.",
+ "tests": [
+  {
+   "args": [
+    "00112233445566778899",
+    {},
+    {}
+   ],
+   "expected": {
+    "outcome": "ok after 1",
+    "calls": [
+     "connect",
+     "write:4",
+     "write:4",
+     "write:2",
+     "verify",
+     "close"
+    ],
+    "sleeps": []
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    "00112233445566778899",
+    {
+     "connect": [
+      1
+     ],
+     "write": [
+      5
+     ]
+    },
+    {
+     "backoff_s": 1.0
+    }
+   ],
+   "expected": {
+    "outcome": "ok after 2",
+    "calls": [
+     "connect",
+     "connect",
+     "write:4",
+     "write:4",
+     "write:2",
+     "verify",
+     "close"
+    ],
+    "sleeps": [
+     1.0
+    ]
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    "00112233445566778899",
+    {
+     "verify": [
+      1,
+      2,
+      3
+     ]
+    },
+    {}
+   ],
+   "expected": {
+    "outcome": "FlashError: gave up after 3 attempts: checksum mismatch (cause: ChecksumMismatch)",
+    "calls": [
+     "connect",
+     "write:4",
+     "write:4",
+     "write:2",
+     "verify",
+     "close",
+     "connect",
+     "write:4",
+     "write:4",
+     "write:2",
+     "verify",
+     "close",
+     "connect",
+     "write:4",
+     "write:4",
+     "write:2",
+     "verify",
+     "close"
+    ],
+    "sleeps": [
+     0.5,
+     1.0
+    ]
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "00112233445566778899",
+    {
+     "connect": [
+      1,
+      2
+     ]
+    },
+    {
+     "max_attempts": 2,
+     "backoff_s": 0.25
+    }
+   ],
+   "expected": {
+    "outcome": "FlashError: gave up after 2 attempts: connect #2 failed (cause: TransportError)",
+    "calls": [
+     "connect",
+     "connect"
+    ],
+    "sleeps": [
+     0.25
+    ]
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "00112233445566778899",
+    {
+     "write_bug": [
+      2
+     ]
+    },
+    {}
+   ],
+   "expected": {
+    "outcome": "RuntimeError",
+    "calls": [
+     "connect",
+     "write:4",
+     "write:4",
+     "close"
+    ],
+    "sleeps": []
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "",
+    {},
+    {}
+   ],
+   "expected": {
+    "outcome": "ValueError",
+    "calls": [],
+    "sleeps": []
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "00112233445566778899",
+    {},
+    {
+     "chunk_size": 0
+    }
+   ],
+   "expected": {
+    "outcome": "ValueError",
+    "calls": [],
+    "sleeps": []
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "00112233445566778899",
+    {},
+    {
+     "max_attempts": 0
+    }
+   ],
+   "expected": {
+    "outcome": "ValueError",
+    "calls": [],
+    "sleeps": []
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "deadbeef",
+    {
+     "write": [
+      1,
+      2,
+      3,
+      4
+     ]
+    },
+    {
+     "chunk_size": 1,
+     "max_attempts": 5,
+     "backoff_s": 2.0
+    }
+   ],
+   "expected": {
+    "outcome": "ok after 5",
+    "calls": [
+     "connect",
+     "write:1",
+     "close",
+     "connect",
+     "write:1",
+     "close",
+     "connect",
+     "write:1",
+     "close",
+     "connect",
+     "write:1",
+     "close",
+     "connect",
+     "write:1",
+     "write:1",
+     "write:1",
+     "write:1",
+     "verify",
+     "close"
+    ],
+    "sleeps": [
+     2.0,
+     4.0,
+     8.0,
+     16.0
+    ]
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "00112233445566778899",
+    {
+     "verify": [
+      1
+     ]
+    },
+    {
+     "chunk_size": 16,
+     "max_attempts": 1
+    }
+   ],
+   "expected": {
+    "outcome": "FlashError: gave up after 1 attempts: checksum mismatch (cause: ChecksumMismatch)",
+    "calls": [
+     "connect",
+     "write:10",
+     "verify",
+     "close"
+    ],
+    "sleeps": []
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    "ab",
+    {
+     "connect": [
+      1
+     ],
+     "verify": [
+      1
+     ]
+    },
+    {
+     "chunk_size": 3,
+     "max_attempts": 4
+    }
+   ],
+   "expected": {
+    "outcome": "ok after 3",
+    "calls": [
+     "connect",
+     "connect",
+     "write:1",
+     "verify",
+     "close",
+     "connect",
+     "write:1",
+     "verify",
+     "close"
+    ],
+    "sleeps": [
+     0.5,
+     1.0
+    ]
+   },
+   "hidden": true
+  }
+ ]
+}

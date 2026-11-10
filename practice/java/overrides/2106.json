@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public List<List<Integer>> readMessages(int[][] chunks) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "readMessages",
+  "notes": "Each chunk is what one recv() returned, as byte values 0-255 (chunks may be empty); the connection closes after the last chunk. Return every complete message payload in order (each a list of byte values; zero-length messages are []), and if the stream ends partway through a header or payload, append one final None (null in Java). The 4-byte length is unsigned (up to 2^32 - 1), so read it into a long."
+}

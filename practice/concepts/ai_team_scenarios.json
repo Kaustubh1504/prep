@@ -1,0 +1,74 @@
+[
+ {
+  "id": "ai-13",
+  "area": "AI/ML for automation",
+  "topic": "End-to-end triage in Jenkins + Gerrit",
+  "level": "core",
+  "question": "Walk me through how you'd plug an AI failure-triage step into our CI: a developer uploads a change to Gerrit, Jenkins runs the tests, some fail. Where does your system run, what does it read, and what does the developer see?",
+  "answer": "- **Trigger:** a post-build step (Jenkins `post { failure { … } }`) or a listener on build-finished events calls a triage service with the build id; it never sits inside the build itself, so it can't slow or break builds.\n- **Inputs:** the failing tests' names, normalised error signatures, the log excerpt around each failure, the change's files and diff stats, and historical data (has this signature been seen, which bug was it linked to, is the test known-flaky).\n- **Pipeline:** cheap rules first (known infra signatures such as a lab-device timeout → `infra`), then similarity to past failures (TF-IDF/embeddings) to propose a known bug, then optionally an LLM summary grounded in the log excerpt.\n- **Output:** a Gerrit comment on the change, e.g. *\"2 failures look like known infra issue BUG-123 (similarity 0.91); 1 failure is new and likely related to your change in `radio/attach.c`\"*, with links. It never sets Verified −1 on its own at first.\n- **Feedback loop:** a 👍/👎 or \"wrong bug\" link on the comment becomes labelled data.\n- **Failure modes to mention:** the service is down (CI must still work: fail open), logs are huge (truncate around the failure), and privacy (keep logs on approved internal infrastructure).",
+  "followups": [
+   "How would you know if it is helping?",
+   "What would make you let it vote Verified −1?"
+  ]
+ },
+ {
+  "id": "ai-14",
+  "area": "AI/ML for automation",
+  "topic": "Smarter culprit finding",
+  "level": "stretch",
+  "question": "A nightly build tests 40 merged changes at once and a test starts failing. Bisecting means up to 6 slow firmware builds. How could you use history or ML to find the culprit faster?",
+  "answer": "- **Baseline:** binary search over the 40 changes, about log₂ 40 ≈ 6 builds; that is the correct fallback and always works.\n- **Rank suspects first:** score each change by overlap between its changed files and the failing test's area (ownership, past co-failure: changes touching `attach.c` historically broke `test_attach`), the size of the change, and the author's recent revert rate.\n- **Test the top suspects directly:** build with just the top-ranked change reverted, or the top few in parallel if hardware allows; if that fixes it you're done in 1–2 builds, otherwise fall back to bisect over the rest.\n- **Measure:** builds needed per culprit found, and how often the top-1 suspect is right; keep bisect as the safety net so a wrong ranking costs time, never correctness.",
+  "followups": [
+   "What if two changes together cause the failure?",
+   "How do you get training data for the ranker?"
+  ]
+ },
+ {
+  "id": "ai-15",
+  "area": "AI/ML for automation",
+  "topic": "Test selection to cut CI time",
+  "level": "core",
+  "question": "Pre-merge CI takes 3 hours because every change runs every test on hardware. How would you use data to run fewer tests without letting bugs through?",
+  "answer": "- **Map changes to tests:** from code ownership and directory structure, plus historical data on which tests failed when which files changed.\n- **Rank and select:** run the tests most likely to fail for this change pre-merge (top-k by predicted failure probability), always including a fixed critical/smoke set.\n- **Safety net:** run the full suite post-merge or nightly, so anything skipped is still caught within a day; when the full run finds something pre-merge missed, that becomes training data.\n- **Metric:** recall of real failures caught pre-merge vs hours saved; set the cut-off so recall stays above an agreed target (e.g. 99% of failures caught).\n- **Pitfalls:** new tests have no history (always run them), and selection must be deterministic and explainable so developers trust it.",
+  "followups": [
+   "How would you handle a change to a shared header that everything includes?",
+   "How do you evaluate this before turning it on?"
+  ]
+ },
+ {
+  "id": "ai-16",
+  "area": "AI/ML for automation",
+  "topic": "Auto-rerun policy",
+  "level": "core",
+  "question": "Engineers keep clicking \"rebuild\" when tests fail on infrastructure problems. Should CI automatically rerun failed tests? How would you design it so it doesn't hide real bugs?",
+  "answer": "- **Rerun only what looks like infrastructure:** known infra signatures (device not found, network timeout to the lab, out of disk), or a classifier's `infra` label above a high confidence; never rerun assertion failures blindly.\n- **Bound it:** at most one automatic rerun, preferably on a different device or agent, so a bad machine doesn't fail twice.\n- **Never hide it:** record the first failure; if a test only passes on rerun, mark it *flaky* and track its flake rate instead of reporting a clean pass.\n- **Act on the data:** devices with high infra-failure rates get pulled for maintenance; tests whose flake rate crosses a threshold go to quarantine with an owner and a ticket.\n- **Measure:** fewer manual rebuilds and less time-to-green, while the rate of bugs escaping to post-merge must not go up.",
+  "followups": [
+   "What's the risk of quarantining a test?",
+   "How do you tell a flaky test from a flaky device?"
+  ]
+ },
+ {
+  "id": "ai-17",
+  "area": "AI/ML for automation",
+  "topic": "Guardrails for agentic automation",
+  "level": "stretch",
+  "question": "Someone proposes an LLM agent that reads failing builds, files bug reports, and even pushes fix changes to Gerrit. What guardrails would you insist on?",
+  "answer": "- **Least privilege:** read-only access to logs at first; it may *draft* bug reports and comments, and a human files them. If it ever uploads changes, it uses a bot account whose changes can never be submitted without human Code-Review +2.\n- **Grounding:** every claim must cite log lines (validated, as in Part G5); otherwise it says *unknown*.\n- **Rate limits and de-duplication:** at most one report per signature per day, and it checks for an existing bug first, to avoid flooding the tracker.\n- **Audit and kill switch:** log every action with its inputs, and keep a single flag to turn it off.\n- **Evaluate offline first:** replay past failures and compare its reports with what engineers actually filed before letting it act live.",
+  "followups": [
+   "How would you measure whether its bug reports are good?",
+   "What could go wrong if it can retrigger builds?"
+  ]
+ },
+ {
+  "id": "ai-18",
+  "area": "AI/ML for automation",
+  "topic": "Your internship pitch",
+  "level": "core",
+  "question": "If you joined us for 12 weeks, what AI or automation project would you pick for our pipelines, and how would you know it worked?",
+  "answer": "*There's no single right answer; structure matters more than the idea.* A strong answer:\n- **Picks a narrow, measurable pain:** e.g. \"engineers spend time re-triaging failures that are already known infra issues\".\n- **Defines an MVP for week 4:** signature normalisation plus matching against known issues, posted as a Gerrit comment in shadow mode (logged, not shown).\n- **Defines success metrics:** the share of failures auto-matched with ≥ 90% precision, minutes of triage saved per day, and engineer feedback on comments.\n- **Plans the rest:** weeks 5–8 to turn it on for one team and gather feedback; weeks 9–12 to add an LLM summary or flaky-test tracking based on what was learned; final demo with numbers.\n- **Shows humility:** ask which pain points the team already knows about; your guess is a starting point, not the plan.",
+  "followups": [
+   "What data would you need on day one?",
+   "What would make you stop the project?"
+  ]
+ }
+]

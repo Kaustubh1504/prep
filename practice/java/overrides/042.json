@@ -1,0 +1,5 @@
+{
+  "starter": "class Solution {\n    public int[][] rangeAddCounts(int n, int[][] rectangles) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "rangeAddCounts"
+}

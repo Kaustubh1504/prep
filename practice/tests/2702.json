@@ -1,0 +1,623 @@
+{
+ "rank": 2702,
+ "kind": "function",
+ "entry": "load_all",
+ "starter": "from typing import Any, Dict, List\n\n\nclass ConfigError(ValueError):\n    \"\"\"Raised for any invalid job configuration.\"\"\"\n\n\nclass JobConfig:\n    \"\"\"Fields in order: name, board, timeout_s=600, retries=0, tags=[], env={}. Validated on construction.\"\"\"\n\n    @classmethod\n    def from_dict(cls, data: Dict[str, Any]) -> \"JobConfig\":\n        pass\n\n    def to_dict(self) -> Dict[str, Any]:\n        pass\n\n    def with_overrides(self, **changes) -> \"JobConfig\":\n        pass\n\n\n# ---------------------------------------------------------------------------\n# Provided \u2014 keep this. The tests call load_all(raws, overrides):\n#   loads each raw dict with JobConfig.from_dict, then mutates the raw input to prove you copied it;\n#   applies each [config_index, changes] override and checks the original config was left unchanged;\n#   and probes a few class-level rules (shared defaults, validation on direct construction, copies).\n# ---------------------------------------------------------------------------\nfrom typing import Any, Dict, List\n\n\ndef _attempt(action):\n    try:\n        return action()\n    except ConfigError as err:\n        return f\"ConfigError: {err}\"\n\n\ndef _contract():\n    a, b = JobConfig(\"a\", \"j3\"), JobConfig(\"b\", \"j3\")\n    a.tags.append(\"x\")\n    exported = a.to_dict()\n    exported[\"tags\"].append(\"y\")\n    exported[\"env\"][\"K\"] = \"V\"\n    return {\n        \"defaults_shared\": b.tags != [],\n        \"export_is_copy\": a.tags == [\"x\"] and a.env == {},\n        \"is_value_error\": isinstance(ConfigError(\"x\"), ValueError),\n        \"direct_bad_timeout\": _attempt(lambda: JobConfig(\"a\", \"j3\", timeout_s=0) and \"accepted\"),\n        \"direct_bool_retries\": _attempt(lambda: JobConfig(\"a\", \"j3\", retries=True) and \"accepted\"),\n        \"equal_by_value\": JobConfig.from_dict({\"name\": \"a\", \"board\": \"j3\"}) == JobConfig(\"a\", \"j3\"),\n    }\n\n\ndef load_all(raws: List[Dict[str, Any]], overrides: List[list]) -> Dict[str, Any]:\n    loaded, configs, errors = [], [], []\n    for i, raw in enumerate(raws):\n        try:\n            cfg = JobConfig.from_dict(raw)\n        except ConfigError as err:\n            errors.append(f\"{i}: {err}\")\n            continue\n        if isinstance(raw.get(\"tags\"), list):\n            raw[\"tags\"].append(\"MUTATED\")\n        if isinstance(raw.get(\"env\"), dict):\n            raw[\"env\"][\"MUTATED\"] = \"1\"\n        loaded.append(cfg)\n        configs.append(cfg.to_dict())\n    applied = []\n    for index, changes in overrides:\n        base = loaded[index]\n        before = base.to_dict()\n        result = _attempt(lambda: base.with_overrides(**changes).to_dict())\n        applied.append([result, base.to_dict() == before])\n    return {\"configs\": configs, \"errors\": errors, \"overrides\": applied, \"contract\": _contract()}\n",
+ "compare": "exact",
+ "notes": "Fields in order: name, board, timeout_s=600, retries=0, tags=[], env={}. Validate on every construction (including direct JobConfig(...) calls and with_overrides) in field order, raising ConfigError(\"invalid <field>\") for the first bad field: name and board are non-blank strings; timeout_s is an int from 1 to 86400 and retries an int from 0 to 5 (bool is not an int here); tags is a list of strings; env is a dict of string to string. from_dict checks, in this order: unknown keys (ConfigError(\"unknown key: <k>\") for the alphabetically first), missing name or board (ConfigError(\"missing key: <k>\"), name first), then validation. Each config owns its own lists and dicts: defaults aren't shared, from_dict copies its input, and to_dict returns copies. with_overrides(**changes) returns a new validated config and never changes the original; an unknown key gives ConfigError(\"unknown key: <k>\"). Configs compare equal by value. load_all is provided.",
+ "tests": [
+  {
+   "args": [
+    [
+     {
+      "name": "modem-smoke",
+      "board": "j3",
+      "timeout_s": 900,
+      "retries": 2,
+      "tags": [
+       "smoke",
+       "lte"
+      ],
+      "env": {
+       "BAND": "n77"
+      }
+     },
+     {
+      "name": "wifi",
+      "board": "j4"
+     }
+    ],
+    [
+     [
+      0,
+      {
+       "retries": 3
+      }
+     ],
+     [
+      1,
+      {
+       "timeout_s": 0
+      }
+     ]
+    ]
+   ],
+   "expected": {
+    "configs": [
+     {
+      "name": "modem-smoke",
+      "board": "j3",
+      "timeout_s": 900,
+      "retries": 2,
+      "tags": [
+       "smoke",
+       "lte"
+      ],
+      "env": {
+       "BAND": "n77"
+      }
+     },
+     {
+      "name": "wifi",
+      "board": "j4",
+      "timeout_s": 600,
+      "retries": 0,
+      "tags": [],
+      "env": {}
+     }
+    ],
+    "errors": [],
+    "overrides": [
+     [
+      {
+       "name": "modem-smoke",
+       "board": "j3",
+       "timeout_s": 900,
+       "retries": 3,
+       "tags": [
+        "smoke",
+        "lte"
+       ],
+       "env": {
+        "BAND": "n77"
+       }
+      },
+      true
+     ],
+     [
+      "ConfigError: invalid timeout_s",
+      true
+     ]
+    ],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     {
+      "name": "a",
+      "board": "j3",
+      "timout_s": 5
+     },
+     {
+      "board": "j3"
+     },
+     {
+      "name": "x"
+     },
+     {
+      "name": "",
+      "board": "j3"
+     }
+    ],
+    []
+   ],
+   "expected": {
+    "configs": [],
+    "errors": [
+     "0: unknown key: timout_s",
+     "1: missing key: name",
+     "2: missing key: board",
+     "3: invalid name"
+    ],
+    "overrides": [],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     {
+      "name": "a",
+      "board": "j3",
+      "retries": true
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "retries": 6
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "timeout_s": 86401
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "timeout_s": 86400
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "timeout_s": 1.5
+     }
+    ],
+    [
+     [
+      0,
+      {
+       "retries": 0,
+       "timeout_s": 1
+      }
+     ]
+    ]
+   ],
+   "expected": {
+    "configs": [
+     {
+      "name": "a",
+      "board": "j3",
+      "timeout_s": 86400,
+      "retries": 0,
+      "tags": [],
+      "env": {}
+     }
+    ],
+    "errors": [
+     "0: invalid retries",
+     "1: invalid retries",
+     "2: invalid timeout_s",
+     "4: invalid timeout_s"
+    ],
+    "overrides": [
+     [
+      {
+       "name": "a",
+       "board": "j3",
+       "timeout_s": 1,
+       "retries": 0,
+       "tags": [],
+       "env": {}
+      },
+      true
+     ]
+    ],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     {
+      "name": "a",
+      "board": " ",
+      "retries": -1
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "tags": "smoke"
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "tags": [
+       "ok",
+       3
+      ]
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "env": {
+       "K": 1
+      }
+     },
+     {
+      "name": "a",
+      "board": "j3",
+      "env": [
+       "K"
+      ]
+     }
+    ],
+    []
+   ],
+   "expected": {
+    "configs": [],
+    "errors": [
+     "0: invalid board",
+     "1: invalid tags",
+     "2: invalid tags",
+     "3: invalid env",
+     "4: invalid env"
+    ],
+    "overrides": [],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     {
+      "zeta": 1,
+      "alpha": 2,
+      "name": "a"
+     },
+     {
+      "name": 5,
+      "board": null
+     },
+     {
+      "board": "j3",
+      "name": "late-name-check",
+      "extra": 1
+     }
+    ],
+    []
+   ],
+   "expected": {
+    "configs": [],
+    "errors": [
+     "0: unknown key: alpha",
+     "1: invalid name",
+     "2: unknown key: extra"
+    ],
+    "overrides": [],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     {
+      "name": "modem-smoke",
+      "board": "j3",
+      "timeout_s": 900,
+      "retries": 2,
+      "tags": [
+       "smoke",
+       "lte"
+      ],
+      "env": {
+       "BAND": "n77"
+      }
+     }
+    ],
+    [
+     [
+      0,
+      {
+       "tags": [
+        "nightly"
+       ]
+      }
+     ],
+     [
+      0,
+      {
+       "env": {
+        "BAND": "n78",
+        "DEBUG": "1"
+       }
+      }
+     ],
+     [
+      0,
+      {
+       "board": ""
+      }
+     ],
+     [
+      0,
+      {
+       "colour": "red"
+      }
+     ],
+     [
+      0,
+      {}
+     ]
+    ]
+   ],
+   "expected": {
+    "configs": [
+     {
+      "name": "modem-smoke",
+      "board": "j3",
+      "timeout_s": 900,
+      "retries": 2,
+      "tags": [
+       "smoke",
+       "lte"
+      ],
+      "env": {
+       "BAND": "n77"
+      }
+     }
+    ],
+    "errors": [],
+    "overrides": [
+     [
+      {
+       "name": "modem-smoke",
+       "board": "j3",
+       "timeout_s": 900,
+       "retries": 2,
+       "tags": [
+        "nightly"
+       ],
+       "env": {
+        "BAND": "n77"
+       }
+      },
+      true
+     ],
+     [
+      {
+       "name": "modem-smoke",
+       "board": "j3",
+       "timeout_s": 900,
+       "retries": 2,
+       "tags": [
+        "smoke",
+        "lte"
+       ],
+       "env": {
+        "BAND": "n78",
+        "DEBUG": "1"
+       }
+      },
+      true
+     ],
+     [
+      "ConfigError: invalid board",
+      true
+     ],
+     [
+      "ConfigError: unknown key: colour",
+      true
+     ],
+     [
+      {
+       "name": "modem-smoke",
+       "board": "j3",
+       "timeout_s": 900,
+       "retries": 2,
+       "tags": [
+        "smoke",
+        "lte"
+       ],
+       "env": {
+        "BAND": "n77"
+       }
+      },
+      true
+     ]
+    ],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     {
+      "name": "a",
+      "board": "j3",
+      "tags": [],
+      "env": {}
+     },
+     {
+      "name": "b",
+      "board": "j3",
+      "tags": [
+       "x"
+      ]
+     }
+    ],
+    [
+     [
+      1,
+      {
+       "tags": [
+        "x",
+        "y"
+       ]
+      }
+     ],
+     [
+      0,
+      {
+       "name": "a2",
+       "retries": 5
+      }
+     ],
+     [
+      0,
+      {
+       "retries": "3"
+      }
+     ]
+    ]
+   ],
+   "expected": {
+    "configs": [
+     {
+      "name": "a",
+      "board": "j3",
+      "timeout_s": 600,
+      "retries": 0,
+      "tags": [],
+      "env": {}
+     },
+     {
+      "name": "b",
+      "board": "j3",
+      "timeout_s": 600,
+      "retries": 0,
+      "tags": [
+       "x"
+      ],
+      "env": {}
+     }
+    ],
+    "errors": [],
+    "overrides": [
+     [
+      {
+       "name": "b",
+       "board": "j3",
+       "timeout_s": 600,
+       "retries": 0,
+       "tags": [
+        "x",
+        "y"
+       ],
+       "env": {}
+      },
+      true
+     ],
+     [
+      {
+       "name": "a2",
+       "board": "j3",
+       "timeout_s": 600,
+       "retries": 5,
+       "tags": [],
+       "env": {}
+      },
+      true
+     ],
+     [
+      "ConfigError: invalid retries",
+      true
+     ]
+    ],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     {
+      "name": "a",
+      "board": "j3",
+      "retries": 0,
+      "timeout_s": 1
+     },
+     {
+      "name": "b",
+      "board": "j3",
+      "retries": false
+     }
+    ],
+    [
+     [
+      0,
+      {
+       "name": "  "
+      }
+     ]
+    ]
+   ],
+   "expected": {
+    "configs": [
+     {
+      "name": "a",
+      "board": "j3",
+      "timeout_s": 1,
+      "retries": 0,
+      "tags": [],
+      "env": {}
+     }
+    ],
+    "errors": [
+     "1: invalid retries"
+    ],
+    "overrides": [
+     [
+      "ConfigError: invalid name",
+      true
+     ]
+    ],
+    "contract": {
+     "defaults_shared": false,
+     "export_is_copy": true,
+     "is_value_error": true,
+     "direct_bad_timeout": "ConfigError: invalid timeout_s",
+     "direct_bool_retries": "ConfigError: invalid retries",
+     "equal_by_value": true
+    }
+   },
+   "hidden": true
+  }
+ ]
+}

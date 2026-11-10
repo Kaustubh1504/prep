@@ -1,0 +1,439 @@
+{
+ "rank": 2704,
+ "kind": "function",
+ "entry": "exercise",
+ "starter": "from typing import Dict, List, Optional, Tuple\n\n\nclass ResultParser:\n    registry: Dict[str, type] = {}  # suffix -> parser class\n\n    def __init_subclass__(cls, suffix: Optional[str] = None, **kwargs):\n        pass\n\n    @classmethod\n    def for_file(cls, path: str) -> \"ResultParser\":\n        pass\n\n    def parse(self, text: str) -> List[Tuple[str, bool]]:\n        \"\"\"Return (test name, passed) pairs.\"\"\"\n        pass\n\n    def summary(self, text: str) -> dict:\n        pass\n\n\nclass JsonParser(ResultParser, suffix=\".json\"):\n    def parse(self, text):\n        pass\n\n\nclass CsvParser(ResultParser, suffix=\".csv\"):\n    def parse(self, text):\n        pass\n\n\nclass TapParser(ResultParser, suffix=\".tap\"):\n    def parse(self, text):\n        pass\n\n\n# ---------------------------------------------------------------------------\n# Provided \u2014 keep this. Two more plugins, registered just by subclassing (no edits to your code):\n# ---------------------------------------------------------------------------\nfrom typing import Any, Dict, List\n\n\nclass XmlStub(ResultParser, suffix=\".xml\"):\n    def parse(self, text):\n        return [(\"xml-stub\", True)]\n\n\nclass JUnitStub(ResultParser, suffix=\".junit.xml\"):\n    def parse(self, text):\n        return [(\"junit-stub\", False)]\n\n\n# The tests call exercise(files): each file is [path, text]; it picks a parser with\n# ResultParser.for_file(path) and reports summary(text), or \"LookupError\" / \"ValueError\".\n# It also probes the registration rules, restoring ResultParser.registry afterwards.\n\ndef _defining(make_class):\n    saved = dict(ResultParser.registry)\n    try:\n        make_class()\n        return \"no error\"\n    except Exception as err:\n        return type(err).__name__\n    finally:\n        ResultParser.registry.clear()\n        ResultParser.registry.update(saved)\n\n\ndef _no_suffix():\n    class NoSuffix(ResultParser):\n        def parse(self, text):\n            return []\n\n\ndef _duplicate():\n    class AnotherJson(ResultParser, suffix=\".json\"):\n        def parse(self, text):\n            return []\n\n\ndef _contract():\n    try:\n        ResultParser()\n        abstract = \"no error\"\n    except TypeError:\n        abstract = \"TypeError\"\n    return {\n        \"base_is_abstract\": abstract,\n        \"subclass_without_suffix\": _defining(_no_suffix),\n        \"duplicate_suffix\": _defining(_duplicate),\n        \"suffix_attribute\": [JsonParser.suffix, JUnitStub.suffix],\n        \"lookup_via_subclass\": type(TapParser.for_file(\"x.json\")).__name__,\n    }\n\n\ndef exercise(files: List[List[str]]) -> Dict[str, Any]:\n    results = []\n    for path, text in files:\n        try:\n            results.append(ResultParser.for_file(path).summary(text))\n        except LookupError:\n            results.append(\"LookupError\")\n        except ValueError:\n            results.append(\"ValueError\")\n    return {\"results\": results, \"suffixes\": sorted(ResultParser.registry), \"contract\": _contract()}\n",
+ "compare": "exact",
+ "notes": "Make ResultParser an abstract base class whose subclasses register themselves with __init_subclass__(suffix=...) in the class attribute ResultParser.registry (suffix -> class) and keep the suffix as cls.suffix; a subclass with no suffix raises TypeError, and a suffix that's already registered raises ValueError. for_file(path) returns an instance of the parser whose suffix is the longest one the path ends with (case-sensitive), or raises LookupError. summary(text) returns {\"parser\": class name, \"passed\": n, \"failed\": n, \"failed_tests\": sorted names}. Formats: .json is a list of {\"name\", \"status\"} objects (anything that isn't a list raises ValueError; invalid JSON raises ValueError naturally); .csv has a header row with name and status columns in any order (a missing column raises ValueError, and quoted fields may contain commas); .tap result lines start with \"ok \" or \"not ok \" followed by a number, \" - \" and the name (like \"not ok 4 - attach\"), and every other line is ignored. A test passed only when its status is exactly pass (a missing status counts as failed). The two stub parsers and exercise are provided.",
+ "tests": [
+  {
+   "args": [
+    [
+     [
+      "run1.json",
+      "[{\"name\": \"boot\", \"status\": \"pass\"}, {\"name\": \"attach\", \"status\": \"fail\"}]"
+     ],
+     [
+      "run2.tap",
+      "1..3\nok 1 - boot\nnot ok 2 - attach\nok 3 - call"
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     {
+      "parser": "JsonParser",
+      "passed": 1,
+      "failed": 1,
+      "failed_tests": [
+       "attach"
+      ]
+     },
+     {
+      "parser": "TapParser",
+      "passed": 2,
+      "failed": 1,
+      "failed_tests": [
+       "attach"
+      ]
+     }
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     [
+      "r.csv",
+      "name,status\nboot,pass\nsms,fail\n"
+     ],
+     [
+      "r.junit.xml",
+      "<testsuite/>"
+     ],
+     [
+      "r.xml",
+      "<x/>"
+     ],
+     [
+      "r.txt",
+      "?"
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     {
+      "parser": "CsvParser",
+      "passed": 1,
+      "failed": 1,
+      "failed_tests": [
+       "sms"
+      ]
+     },
+     {
+      "parser": "JUnitStub",
+      "passed": 0,
+      "failed": 1,
+      "failed_tests": [
+       "junit-stub"
+      ]
+     },
+     {
+      "parser": "XmlStub",
+      "passed": 1,
+      "failed": 0,
+      "failed_tests": []
+     },
+     "LookupError"
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     [
+      "a.csv",
+      "status,name\npass,\"call, then hang up\"\nfail,\"sms, long\"\nskipped,boot\n"
+     ],
+     [
+      "b.csv",
+      "test,result\nx,pass\n"
+     ],
+     [
+      "c.json",
+      "{not json"
+     ],
+     [
+      "d.json",
+      "{\"name\": \"x\"}"
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     {
+      "parser": "CsvParser",
+      "passed": 1,
+      "failed": 2,
+      "failed_tests": [
+       "boot",
+       "sms, long"
+      ]
+     },
+     "ValueError",
+     "ValueError",
+     "ValueError"
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "R.JSON",
+      "[]"
+     ],
+     [
+      "x.json.bak",
+      "[]"
+     ],
+     [
+      "junit.xml",
+      "<x/>"
+     ],
+     [
+      ".tap",
+      "ok 1 - a"
+     ],
+     [
+      "logs/nightly/modem.junit.xml",
+      ""
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     "LookupError",
+     "LookupError",
+     {
+      "parser": "XmlStub",
+      "passed": 1,
+      "failed": 0,
+      "failed_tests": []
+     },
+     {
+      "parser": "TapParser",
+      "passed": 1,
+      "failed": 0,
+      "failed_tests": []
+     },
+     {
+      "parser": "JUnitStub",
+      "passed": 0,
+      "failed": 1,
+      "failed_tests": [
+       "junit-stub"
+      ]
+     }
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "t.tap",
+      "TAP version 13\n1..4\nok 1 - a\n# diag: not ok\nnot ok 2 - b\nokay 3 - c\nok 4 - d\nnot ok 5 - a"
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     {
+      "parser": "TapParser",
+      "passed": 2,
+      "failed": 2,
+      "failed_tests": [
+       "a",
+       "b"
+      ]
+     }
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "e.json",
+      "[]"
+     ],
+     [
+      "e.csv",
+      "name,status\n"
+     ],
+     [
+      "e.tap",
+      ""
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     {
+      "parser": "JsonParser",
+      "passed": 0,
+      "failed": 0,
+      "failed_tests": []
+     },
+     {
+      "parser": "CsvParser",
+      "passed": 0,
+      "failed": 0,
+      "failed_tests": []
+     },
+     {
+      "parser": "TapParser",
+      "passed": 0,
+      "failed": 0,
+      "failed_tests": []
+     }
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "m.json",
+      "[{\"name\": \"z\", \"status\": \"pass\"}, {\"name\": \"a\", \"status\": \"PASS\"}, {\"name\": \"m\", \"status\": \"error\"}, {\"name\": \"b\"}]"
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     {
+      "parser": "JsonParser",
+      "passed": 1,
+      "failed": 3,
+      "failed_tests": [
+       "a",
+       "b",
+       "m"
+      ]
+     }
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "big.csv",
+      "name,status,duration\nt00,fail,0\nt01,pass,1\nt02,pass,2\nt03,fail,3\nt04,pass,4\nt05,pass,5\nt06,fail,6\nt07,pass,7\nt08,pass,8\nt09,fail,9\nt10,pass,10\nt11,pass,11\n"
+     ]
+    ]
+   ],
+   "expected": {
+    "results": [
+     {
+      "parser": "CsvParser",
+      "passed": 8,
+      "failed": 4,
+      "failed_tests": [
+       "t00",
+       "t03",
+       "t06",
+       "t09"
+      ]
+     }
+    ],
+    "suffixes": [
+     ".csv",
+     ".json",
+     ".junit.xml",
+     ".tap",
+     ".xml"
+    ],
+    "contract": {
+     "base_is_abstract": "TypeError",
+     "subclass_without_suffix": "TypeError",
+     "duplicate_suffix": "ValueError",
+     "suffix_attribute": [
+      ".json",
+      ".junit.xml"
+     ],
+     "lookup_via_subclass": "JsonParser"
+    }
+   },
+   "hidden": true
+  }
+ ]
+}

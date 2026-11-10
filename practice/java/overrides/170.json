@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    // Part 1\n    public List<Integer> countSmaller(int[] nums) {\n        \n        return null;\n    }\n\n    // Part 2\n    public long countXorTriplets(int[] arr) {\n        \n        return 0;\n    }\n\n    // ---- Provided: test dispatcher used by the runner. Keep this. ----\n    public Object solve(int part, List<Object> args) {\n        int[] values = toIntArray(args.get(0));\n        if (part == 1) return countSmaller(values);\n        return countXorTriplets(values);\n    }\n\n    @SuppressWarnings(\"unchecked\")\n    private static int[] toIntArray(Object json) {\n        List<Object> list = (List<Object>) json;\n        int[] out = new int[list.size()];\n        for (int i = 0; i < out.length; i++) out[i] = ((Number) list.get(i)).intValue();\n        return out;\n    }\n}\n",
+  "className": "Solution",
+  "method": "solve",
+  "notes": "Implement countSmaller (Part 1) and countXorTriplets (Part 2, can exceed 32 bits); keep the provided solve(part, args) dispatcher, which the tests call."
+}

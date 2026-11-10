@@ -1,0 +1,682 @@
+[
+ {
+  "slug": "lru-cache",
+  "title": "LRU Cache",
+  "neetcode_pattern": "Linked List",
+  "pattern": "Design / Data Structure",
+  "secondary": [
+   "Linked List",
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": 144,
+  "related": [
+   144,
+   422
+  ],
+  "cue": "Fixed-capacity key-value cache that evicts the least recently used key; get and put in O(1).",
+  "note": "An instance of #144's hash map + ordering structure, where the ordering is a doubly linked list: the map points at nodes, so get moves a node to the front and put evicts from the tail in O(1). The pointer surgery (unlink, push front, update an existing key) is where bugs live; #422's sentinel nodes remove most of the edge cases.",
+  "video": "7ABFKPK2hD4"
+ },
+ {
+  "slug": "longest-increasing-subsequence",
+  "title": "Longest Increasing Subsequence",
+  "neetcode_pattern": "1-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [
+   "Binary Search"
+  ],
+  "cluster_anchor": 73,
+  "related": [
+   73,
+   139
+  ],
+  "cue": "Length of the longest strictly increasing subsequence (not contiguous).",
+  "note": "Unlike #73, the best run ending at i can extend from any earlier j, not just i−1, so the plain DP is O(n²). The O(n log n) version keeps tails[k] = smallest tail of an increasing subsequence of length k+1 and updates it with #139's lower_bound; tails is not itself an LIS, which is the part people get wrong.",
+  "video": "cjWnW0hdF1Y"
+ },
+ {
+  "slug": "cheapest-flights-within-k-stops",
+  "title": "Cheapest Flights Within K Stops",
+  "neetcode_pattern": "Advanced Graphs",
+  "pattern": "Shortest Path",
+  "secondary": [
+   "Graph BFS / DFS",
+   "Dynamic Programming"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   156,
+   200,
+   130
+  ],
+  "cue": "Cheapest route from src to dst using at most k intermediate stops.",
+  "note": "Plain Dijkstra with a visited set is wrong: a costlier path with fewer stops may be the only one within the limit. Run k+1 rounds of Bellman-Ford relaxing from a copy of the previous round, or BFS by layers like #156 over (node, stops) states. Unlike #200's bottleneck path, the constraint is on edge count, not edge weight.",
+  "video": "5eIK3zUdYmE"
+ },
+ {
+  "slug": "edit-distance",
+  "title": "Edit Distance",
+  "neetcode_pattern": "2-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [
+   "String Processing"
+  ],
+  "cluster_anchor": 416,
+  "related": [
+   416
+  ],
+  "cue": "Minimum insertions, deletions and substitutions to turn one string into another.",
+  "note": "The canonical #416 two-sequence DP: dp[i][j] over prefixes, a match carries the diagonal and a mismatch takes 1 + min of the three neighbours. The hard part is mapping each operation to the right neighbour and initialising row/column 0 as pure inserts/deletes.",
+  "video": "XYi2-LPrwm4"
+ },
+ {
+  "slug": "word-break",
+  "title": "Word Break",
+  "neetcode_pattern": "1-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [
+   "Trie",
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": 323,
+  "related": [
+   323,
+   284
+  ],
+  "cue": "Can a string be split into a sequence of dictionary words?",
+  "note": "1-D DP like #323, but dp[i] (prefix of length i is breakable) looks back to every j with dp[j] true and s[j:i] in the dictionary, not just i−1 and i−2. Bound j by the longest word, or walk a #284 trie forward from each true position. Greedy longest-match fails.",
+  "video": "Sx9NNgInc3A"
+ },
+ {
+  "slug": "longest-consecutive-sequence",
+  "title": "Longest Consecutive Sequence",
+  "neetcode_pattern": "Arrays & Hashing",
+  "pattern": "Hashing / Counting",
+  "secondary": [],
+  "cluster_anchor": 461,
+  "related": [
+   461,
+   515
+  ],
+  "cue": "Length of the longest run of consecutive integers in an unsorted array, in O(n).",
+  "note": "Set membership like #461, plus the key insight: only start counting from x when x−1 is not in the set, so each run is walked once and the nested loop is still O(n) total. Sorting gives O(n log n) and is the trap answer.",
+  "video": "P6RZZMu_maU"
+ },
+ {
+  "slug": "construct-binary-tree-from-preorder-and-inorder-traversal",
+  "title": "Construct Binary Tree From Preorder And Inorder Traversal",
+  "neetcode_pattern": "Trees",
+  "pattern": "Tree Traversal / BST",
+  "secondary": [
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": 305,
+  "related": [
+   305,
+   427
+  ],
+  "cue": "Rebuild a binary tree from its preorder and inorder sequences (unique values).",
+  "note": "Same family as #305, but it takes two sequences: preorder's next element is the root, and its position in inorder splits the left and right subtrees. A value→index map plus a moving preorder pointer makes it O(n); slicing arrays makes it O(n²), and the off-by-one in the split is where it usually breaks.",
+  "video": "ihj4IQGZ2zc"
+ },
+ {
+  "slug": "interleaving-string",
+  "title": "Interleaving String",
+  "neetcode_pattern": "2-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [],
+  "cluster_anchor": 416,
+  "related": [
+   416,
+   272
+  ],
+  "cue": "Can s3 be formed by interleaving s1 and s2 while keeping each one's order?",
+  "note": "Two-sequence DP like #416, but the third string is indexed implicitly: dp[i][j] means s1[:i] and s2[:j] form s3[:i+j]. It is effectively #272's grid path where each right/down step must match the next char of s3. Check the lengths first; greedy two-pointer matching fails on ties.",
+  "video": "3Rw3p9LrgvE"
+ },
+ {
+  "slug": "partition-equal-subset-sum",
+  "title": "Partition Equal Subset Sum",
+  "neetcode_pattern": "1-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [],
+  "cluster_anchor": 95,
+  "related": [
+   95
+  ],
+  "cue": "Can the array be split into two subsets with equal sums?",
+  "note": "The reformulation is the insight: it is #95's subset sum with target total/2 (odd total means false). Use a 1-D boolean dp iterated backwards over sums so each number is used once, or a bitset shift.",
+  "video": "IsvocB5BJhw"
+ },
+ {
+  "slug": "target-sum",
+  "title": "Target Sum",
+  "neetcode_pattern": "2-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [
+   "Backtracking"
+  ],
+  "cluster_anchor": 95,
+  "related": [
+   95,
+   85
+  ],
+  "cue": "Number of ways to put + or − before each number so the total equals target.",
+  "note": "Brute force is #85-style 2^n choices. Reformulate: if P is the plus set, sum(P) = (total + target)/2, so it becomes #95 subset counting. Guard against odd parity and |target| > total; zeros double the count, which the dp handles but ad-hoc memo shortcuts often miss.",
+  "video": "g0npyaQtAQM"
+ },
+ {
+  "slug": "maximum-product-subarray",
+  "title": "Maximum Product Subarray",
+  "neetcode_pattern": "1-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [],
+  "cluster_anchor": 73,
+  "related": [
+   73
+  ],
+  "cue": "Largest product of a contiguous subarray (negatives and zeros allowed).",
+  "note": "Kadane like #73, but a negative can flip the smallest product into the largest, so track both the max and min product ending at i (swap them on a negative). Zeros reset both.",
+  "video": "lXVy6YWFcRM"
+ },
+ {
+  "slug": "decode-ways",
+  "title": "Decode Ways",
+  "neetcode_pattern": "1-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [
+   "String Processing"
+  ],
+  "cluster_anchor": 323,
+  "related": [
+   323,
+   273
+  ],
+  "cue": "Count ways to decode a digit string where 1–26 map to A–Z.",
+  "note": "Same recurrence shape as #323's 1-D counting (take one digit or two), but the edge cases are the problem: '0' cannot stand alone, '06' is not valid, and only 10–26 count as two-digit codes. A leading '0' or '00' makes the answer 0.",
+  "video": "6aEyTjOwlJU"
+ },
+ {
+  "slug": "best-time-to-buy-and-sell-stock-with-cooldown",
+  "title": "Best Time to Buy And Sell Stock With Cooldown",
+  "neetcode_pattern": "2-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [
+   "Greedy"
+  ],
+  "cluster_anchor": 414,
+  "related": [
+   414,
+   459
+  ],
+  "cue": "Max profit with unlimited trades but a one-day cooldown after each sale.",
+  "note": "#414's one-pass greedy breaks because the cooldown couples days. Model it as a state machine (holding, just sold, resting) with per-day transitions, like #459's take/skip with three states. Reading yesterday's values rather than today's partially updated ones is the usual bug.",
+  "video": "I7j0F7AHpb8"
+ },
+ {
+  "slug": "coin-change-ii",
+  "title": "Coin Change II",
+  "neetcode_pattern": "2-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [],
+  "cluster_anchor": 95,
+  "related": [
+   95,
+   323
+  ],
+  "cue": "Number of coin combinations (order doesn't matter) that sum to an amount.",
+  "note": "Unbounded #95 knapsack counting. The trap is loop order: coins in the outer loop counts combinations; amount in the outer loop counts permutations (that is Combination Sum IV, closer to #323).",
+  "video": "Mjy4hd2xgrs"
+ },
+ {
+  "slug": "gas-station",
+  "title": "Gas Station",
+  "neetcode_pattern": "Greedy",
+  "pattern": "Greedy",
+  "secondary": [
+   "Prefix Sum"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   473,
+   73
+  ],
+  "cue": "Find the start index from which you can drive once around a circular route of gas stations.",
+  "note": "Two insights: a solution exists iff total gas ≥ total cost, and if the running tank goes negative at i, no start between the current start and i works, so jump the start to i+1. A one-pass prefix-sum argument, close in spirit to #73's reset-on-negative.",
+  "video": "lJwbPZGo05A"
+ },
+ {
+  "slug": "valid-parenthesis-string",
+  "title": "Valid Parenthesis String",
+  "neetcode_pattern": "Greedy",
+  "pattern": "Greedy",
+  "secondary": [
+   "Stack / Parsing",
+   "Dynamic Programming"
+  ],
+  "cluster_anchor": 249,
+  "related": [
+   249
+  ],
+  "cue": "Is a string of '(', ')' and '*' balanced, where '*' can be '(', ')' or empty?",
+  "note": "#249's single counter breaks because '*' is three-way. Track the range [lo, hi] of possible open counts: '(' raises both, ')' lowers both, '*' lowers lo and raises hi; fail if hi < 0, clamp lo at 0, and require lo == 0 at the end. Two-stack and O(n²) DP versions also work.",
+  "video": "QhPdNS143Qg"
+ },
+ {
+  "slug": "pacific-atlantic-water-flow",
+  "title": "Pacific Atlantic Water Flow",
+  "neetcode_pattern": "Graphs",
+  "pattern": "Graph BFS / DFS",
+  "secondary": [],
+  "cluster_anchor": 131,
+  "related": [
+   131,
+   17
+  ],
+  "cue": "Cells from which water can flow downhill to both the top/left ocean and the bottom/right ocean.",
+  "note": "Searching from every cell is O((mn)²). Reverse the flow: a #131-style multi-source search from each ocean's border, moving uphill (to neighbours ≥ current), then intersect the two reachable sets.",
+  "video": "s-VkcjHqkGI"
+ },
+ {
+  "slug": "task-scheduler",
+  "title": "Task Scheduler",
+  "neetcode_pattern": "Heap / Priority Queue",
+  "pattern": "Heap / Top-K",
+  "secondary": [
+   "Greedy",
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": 356,
+  "related": [
+   356,
+   217
+  ],
+  "cue": "Minimum time slots to run tasks when identical tasks need n idle slots between them.",
+  "note": "Starts from #356's frequency count, but the answer is a counting argument: (maxFreq − 1) × (n + 1) + (number of tasks with maxFreq), floored at the task count. A max-heap plus cooldown-queue simulation also works, but the formula is the insight interviewers probe.",
+  "video": "s8p8ukTyA2I"
+ },
+ {
+  "slug": "longest-repeating-character-replacement",
+  "title": "Longest Repeating Character Replacement",
+  "neetcode_pattern": "Sliding Window",
+  "pattern": "Sliding Window",
+  "secondary": [
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": 11,
+  "related": [
+   11,
+   268
+  ],
+  "cue": "Longest substring that can become all one letter after at most k replacements.",
+  "note": "A longest-window problem like #11, but validity is window length − count of the most frequent char ≤ k. The subtle part: maxFreq never needs to decrease when shrinking, because only a larger maxFreq can produce a longer answer.",
+  "video": "gqXU1UyA8pk"
+ },
+ {
+  "slug": "car-fleet",
+  "title": "Car Fleet",
+  "neetcode_pattern": "Stack",
+  "pattern": "Monotonic Stack",
+  "secondary": [
+   "Sorting"
+  ],
+  "cluster_anchor": 13,
+  "related": [
+   13,
+   477
+  ],
+  "cue": "How many groups of cars reach the destination, given cars can't pass and merge when they catch up.",
+  "note": "Reformulate as arrival times: sort by position descending (#477-style), compute (target − pos)/speed, and a car starts a new fleet only if its time is strictly greater than the fleet ahead. That is a monotonic stack of times like #13, though a single running max suffices.",
+  "video": "Pr6T-3yB9RM"
+ },
+ {
+  "slug": "min-cost-to-connect-all-points",
+  "title": "Min Cost to Connect All Points",
+  "neetcode_pattern": "Advanced Graphs",
+  "pattern": "Union-Find",
+  "secondary": [
+   "Heap / Top-K"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   109,
+   18
+  ],
+  "cue": "Minimum total Manhattan distance to connect all points into one network.",
+  "note": "A minimum spanning tree on a complete graph. Kruskal reuses #18's idea (process edges in order, union until connected) but materialises O(n²) edges; Prim's with a heap or an O(n²) array scan suits the dense graph better. Unlike #109, which edges you pick matters, not just which points end up together.",
+  "video": "f7JOBJIC-NA"
+ },
+ {
+  "slug": "find-the-duplicate-number",
+  "title": "Find The Duplicate Number",
+  "neetcode_pattern": "Linked List",
+  "pattern": "Linked List",
+  "secondary": [
+   "Binary Search",
+   "Bit Manipulation"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   92,
+   325
+  ],
+  "cue": "Find the one repeated value among n+1 numbers in 1..n without modifying the array and in O(1) space.",
+  "note": "The reformulation: treat i → nums[i] as a linked list; the duplicate is the entrance to its cycle, found with Floyd's tortoise-and-hare plus a second pass from the start. An O(n log n) alternative is #92's binary search on the answer (count values ≤ mid). #325's XOR trick fails because the duplicate can appear more than twice.",
+  "video": "wjYnzkAhcNk"
+ },
+ {
+  "slug": "search-in-rotated-sorted-array",
+  "title": "Search In Rotated Sorted Array",
+  "neetcode_pattern": "Binary Search",
+  "pattern": "Binary Search",
+  "secondary": [],
+  "cluster_anchor": 349,
+  "related": [
+   349,
+   139
+  ],
+  "cue": "Find a target in a sorted array rotated at an unknown pivot, in O(log n).",
+  "note": "#349-style: at each step one half is sorted; if the target lies in that half's range go there, else go to the other half. The <= vs < comparisons when lo == mid are the classic bug; Find Minimum in Rotated Sorted Array is the warm-up variant.",
+  "video": "U8XENwh8Oy8"
+ },
+ {
+  "slug": "copy-list-with-random-pointer",
+  "title": "Copy List With Random Pointer",
+  "neetcode_pattern": "Linked List",
+  "pattern": "Linked List",
+  "secondary": [
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   506,
+   422
+  ],
+  "cue": "Deep-copy a linked list whose nodes also have a random pointer to any node or null.",
+  "note": "Random pointers can point forward, so copies can't be wired in one pass. Map old→new in a hash map over two passes, or use the O(1)-space trick: interleave each copy after its original, set copy.random = orig.random.next, then unweave. More pointer juggling than #506's reversal.",
+  "video": "5Y2EiZST97Y"
+ },
+ {
+  "slug": "design-twitter",
+  "title": "Design Twitter",
+  "neetcode_pattern": "Heap / Priority Queue",
+  "pattern": "Design / Data Structure",
+  "secondary": [
+   "Heap / Top-K",
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": 514,
+  "related": [
+   514,
+   5
+  ],
+  "cue": "Mini Twitter: post, follow/unfollow, and fetch the 10 most recent tweets from yourself and followees.",
+  "note": "The feed is #514's merging-sequences-behind-an-API: each followee's tweets are a time-sorted list, and the top 10 come from a k-way heap merge like #5. Details: a global timestamp, implicitly following yourself, and unfollowing yourself being a no-op.",
+  "video": "pNichitDD2E"
+ },
+ {
+  "slug": "jump-game-ii",
+  "title": "Jump Game II",
+  "neetcode_pattern": "Greedy",
+  "pattern": "Greedy",
+  "secondary": [
+   "Graph BFS / DFS"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   156
+  ],
+  "cue": "Minimum number of jumps to reach the last index when nums[i] is the max jump length from i.",
+  "note": "It is #156's BFS by layers without a queue: the current layer is the index range reachable in j jumps, and the next layer extends to the farthest i + nums[i] within it. Seeing the implicit BFS is the insight; the O(n²) DP is the trap answer.",
+  "video": "dJ7sWiOoK7g"
+ },
+ {
+  "slug": "longest-palindromic-substring",
+  "title": "Longest Palindromic Substring",
+  "neetcode_pattern": "1-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [
+   "Two Pointers"
+  ],
+  "cluster_anchor": 508,
+  "related": [
+   508
+  ],
+  "cue": "Longest contiguous substring that reads the same forwards and backwards.",
+  "note": "#508 interval DP (dp[i][j] = ends match and dp[i+1][j−1]) works in O(n²) space, but expand-around-center is simpler: 2n−1 centres covering odd and even lengths. Forgetting even-length centres is the usual bug; Palindromic Substrings is the same expansion, counting instead of maxing.",
+  "video": "XYQecbcd6_c"
+ },
+ {
+  "slug": "3sum",
+  "title": "3Sum",
+  "neetcode_pattern": "Two Pointers",
+  "pattern": "Two Pointers",
+  "secondary": [
+   "Sorting"
+  ],
+  "cluster_anchor": 420,
+  "related": [
+   420
+  ],
+  "cue": "All unique triplets that sum to zero.",
+  "note": "#420's k-sum family: sort, fix i, then inward pointers for the pair. What trips people is deduplication without a set of tuples: skip equal nums[i], and after a hit skip equal values on both pointers.",
+  "video": "jzZsG8n2R9A"
+ },
+ {
+  "slug": "reorder-list",
+  "title": "Reorder List",
+  "neetcode_pattern": "Linked List",
+  "pattern": "Linked List",
+  "secondary": [
+   "Two Pointers"
+  ],
+  "cluster_anchor": 506,
+  "related": [
+   506,
+   189
+  ],
+  "cue": "Reorder L0→L1→…→Ln into L0→Ln→L1→Ln−1→… in place.",
+  "note": "Combines three steps: find the middle with slow/fast pointers, reverse the second half (#506), then merge the halves alternately. Cutting the first half's tail is the step people forget, which leaves a cycle.",
+  "video": "S5bfdUTrKLM"
+ },
+ {
+  "slug": "product-of-array-except-self",
+  "title": "Product of Array Except Self",
+  "neetcode_pattern": "Arrays & Hashing",
+  "pattern": "Prefix Sum",
+  "secondary": [],
+  "cluster_anchor": 468,
+  "related": [
+   468
+  ],
+  "cue": "For each index, the product of all other elements, without division and in O(n).",
+  "note": "Like #468's precomputation, but with products and excluding i: answer[i] = prefix product before i × suffix product after i. In O(1) extra space, write prefixes into the output, then multiply in a running suffix from the right; division fails on zeros.",
+  "video": "bNvIQI2wAjk"
+ },
+ {
+  "slug": "container-with-most-water",
+  "title": "Container With Most Water",
+  "neetcode_pattern": "Two Pointers",
+  "pattern": "Two Pointers",
+  "secondary": [],
+  "cluster_anchor": 420,
+  "related": [
+   420
+  ],
+  "cue": "Two lines that, with the x-axis, hold the most water.",
+  "note": "Inward pointers like #420, but the array isn't sorted and the move rule needs a proof: always move the shorter line, since any container that keeps it is narrower and can't be taller. Trapping Rain Water builds on the same idea.",
+  "video": "UuiTKBwPgAo"
+ },
+ {
+  "slug": "combination-sum-ii",
+  "title": "Combination Sum II",
+  "neetcode_pattern": "Backtracking",
+  "pattern": "Backtracking",
+  "secondary": [
+   "Sorting"
+  ],
+  "cluster_anchor": 85,
+  "related": [
+   85
+  ],
+  "cue": "All unique combinations summing to target, each number used at most once, input has duplicates.",
+  "note": "#85's pick-from-a-candidate-list plus duplicate handling: sort, and at each recursion level skip a candidate equal to the previous one at that level (i > start and nums[i] == nums[i−1]). The same trick drives Subsets II.",
+  "video": "rSA3t6BDDwg"
+ },
+ {
+  "slug": "detect-squares",
+  "title": "Detect Squares",
+  "neetcode_pattern": "Math & Geometry",
+  "pattern": "Design / Data Structure",
+  "secondary": [
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   515,
+   467
+  ],
+  "cue": "Stream of points; count axis-aligned squares a query point forms with stored points (duplicates count).",
+  "note": "Keep a counter of points. For a query, treat each stored point as the diagonal corner (|dx| == |dy| ≠ 0) and multiply the counts of the two remaining corners: a #515-style partner lookup generalised to 2D. Multiplicity from duplicate points is the fiddly part.",
+  "video": "bahebearrDc"
+ },
+ {
+  "slug": "validate-binary-search-tree",
+  "title": "Validate Binary Search Tree",
+  "neetcode_pattern": "Trees",
+  "pattern": "Tree Traversal / BST",
+  "secondary": [],
+  "cluster_anchor": 413,
+  "related": [
+   413,
+   389
+  ],
+  "cue": "Is a binary tree a valid BST (whole left subtree < node < whole right subtree)?",
+  "note": "Comparing a node only with its children is the trap. Either pass (low, high) bounds down like #389's accumulators, or use #413's in-order traversal and check it is strictly increasing. Use None or infinite bounds, not INT_MIN/INT_MAX, since node values can equal them.",
+  "video": "s6ATEkipzow"
+ },
+ {
+  "slug": "surrounded-regions",
+  "title": "Surrounded Regions",
+  "neetcode_pattern": "Graphs",
+  "pattern": "Graph BFS / DFS",
+  "secondary": [],
+  "cluster_anchor": 17,
+  "related": [
+   17,
+   131
+  ],
+  "cue": "Capture 'O' regions fully enclosed by 'X'; regions touching the border survive.",
+  "note": "Flood fill like #17, but reversed: start from border 'O's (#131-style multi-source) and mark the survivors, then flip every unmarked 'O'. Deciding enclosure region by region is messier.",
+  "video": "9z2BunfoZ5Y"
+ },
+ {
+  "slug": "hand-of-straights",
+  "title": "Hand of Straights",
+  "neetcode_pattern": "Greedy",
+  "pattern": "Hashing / Counting",
+  "secondary": [
+   "Greedy",
+   "Sorting"
+  ],
+  "cluster_anchor": 515,
+  "related": [
+   515
+  ],
+  "cue": "Can the cards be split into groups of groupSize consecutive values?",
+  "note": "Partner lookup in a counter like #515, extended to a run of groupSize: the smallest remaining card must start a group, so repeatedly take the min (sorted keys or a heap) and decrement the next groupSize−1 values. Seeing that the smallest card's role is forced is the insight.",
+  "video": "amnrMCVd2YI"
+ },
+ {
+  "slug": "partition-labels",
+  "title": "Partition Labels",
+  "neetcode_pattern": "Greedy",
+  "pattern": "Intervals / Sweep Line",
+  "secondary": [
+   "Greedy",
+   "Hashing / Counting"
+  ],
+  "cluster_anchor": 202,
+  "related": [
+   202
+  ],
+  "cue": "Split a string into as many parts as possible so each letter appears in only one part.",
+  "note": "Each letter defines an interval [first, last], and the parts are #202's merged intervals. In one pass: record each letter's last index, extend the current end to max(last[c]), and cut when i == end.",
+  "video": "B7m8UmZE-vw"
+ },
+ {
+  "slug": "house-robber-ii",
+  "title": "House Robber II",
+  "neetcode_pattern": "1-D Dynamic Programming",
+  "pattern": "Dynamic Programming",
+  "secondary": [],
+  "cluster_anchor": 459,
+  "related": [
+   459
+  ],
+  "cue": "Max sum of non-adjacent houses arranged in a circle (first and last are adjacent).",
+  "note": "#459's take/skip with a circular twist: the first and last can't both be taken, so run the linear solution on nums[1:] and nums[:-1] and take the max. Handle n == 1 separately.",
+  "video": "rWAJCfYYOvM"
+ },
+ {
+  "slug": "set-matrix-zeroes",
+  "title": "Set Matrix Zeroes",
+  "neetcode_pattern": "Math & Geometry",
+  "pattern": "Simulation",
+  "secondary": [],
+  "cluster_anchor": null,
+  "related": [
+   42
+  ],
+  "cue": "If a cell is 0, zero its entire row and column, in place.",
+  "note": "Easy with O(m+n) extra sets; the O(1)-space version stores markers in the first row and column and needs a separate flag for whether row 0 or column 0 itself had a zero. Order matters: zero the inner cells first, then the first row and column.",
+  "video": "T41rL0L3Pnw"
+ },
+ {
+  "slug": "spiral-matrix",
+  "title": "Spiral Matrix",
+  "neetcode_pattern": "Math & Geometry",
+  "pattern": "Simulation",
+  "secondary": [],
+  "cluster_anchor": null,
+  "related": [
+   117
+  ],
+  "cue": "Return a matrix's elements in clockwise spiral order.",
+  "note": "No algorithmic insight, just fiddly bounds: shrink top/bottom/left/right after each side, and re-check top ≤ bottom and left ≤ right before walking the bottom row and left column, or single rows and columns get duplicated.",
+  "video": "BJnMZNwUk1M"
+ },
+ {
+  "slug": "rotate-image",
+  "title": "Rotate Image",
+  "neetcode_pattern": "Math & Geometry",
+  "pattern": "Two Pointers",
+  "secondary": [
+   "Math / Number Theory"
+  ],
+  "cluster_anchor": 472,
+  "related": [
+   472
+  ],
+  "cue": "Rotate an n×n matrix 90° clockwise in place.",
+  "note": "The reformulation: clockwise rotation = transpose, then reverse each row (#472's in-place reverse). The direct four-way cycle swap, layer by layer, also works but its index arithmetic is error-prone.",
+  "video": "fMSJSS7eO1w"
+ },
+ {
+  "slug": "sum-of-two-integers",
+  "title": "Sum of Two Integers",
+  "neetcode_pattern": "Bit Manipulation",
+  "pattern": "Bit Manipulation",
+  "secondary": [
+   "Math / Number Theory"
+  ],
+  "cluster_anchor": null,
+  "related": [
+   325,
+   173
+  ],
+  "cue": "Add two integers without using + or −.",
+  "note": "a ^ b is the sum without carries and (a & b) << 1 is the carry; loop until the carry is zero: #173's column arithmetic done in binary, all bits at once. In Python you must mask to 32 bits and convert back for negatives, which is the real difficulty.",
+  "video": "gVUrDV4tZfY"
+ }
+]

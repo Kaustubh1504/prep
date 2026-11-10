@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public int longestColorRun(String[][] grid) {\n        \n        return 0;\n    }\n}\n",
+  "className": "Solution",
+  "method": "longestColorRun",
+  "notes": "Colors are Strings (some are multi-letter names), so compare them with equals()."
+}

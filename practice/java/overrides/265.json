@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public long[] bestMeetingPlan(int n, int[][] edges, int startA, int startB, int dest, boolean directed) {\n        \n        return null;\n    }\n\n    /** directed defaults to false (two-way roads): keep this overload. */\n    public long[] bestMeetingPlan(int n, int[][] edges, int startA, int startB, int dest) {\n        return bestMeetingPlan(n, edges, startA, startB, dest, false);\n    }\n}\n",
+  "className": "Solution",
+  "method": "bestMeetingPlan",
+  "notes": "Return {minCost, meetingPoint} as a long[] (costs can exceed the int range). Keep the 5-argument overload: it means directed = false."
+}

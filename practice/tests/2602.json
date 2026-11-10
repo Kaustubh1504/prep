@@ -1,0 +1,1475 @@
+{
+ "rank": 2602,
+ "kind": "function",
+ "entry": "suggest_bug",
+ "starter": "from typing import List\n\n\ndef suggest_bug(past: List[List[str]], new_text: str, threshold: float) -> str:\n    pass\n",
+ "compare": "exact",
+ "notes": "idf uses the past documents only: a token of the new text that never appears in the past has df = 0, but it still counts in the new text's tf and vector norm. A document with no tokens is a zero vector with similarity 0, so an empty new text (or empty past) gives \"NEW\"; ties go to the earliest past failure.",
+ "tests": [
+  {
+   "args": [
+    [
+     [
+      "modem timeout during attach",
+      "BUG-1"
+     ],
+     [
+      "wifi scan crashed",
+      "BUG-2"
+     ],
+     [
+      "modem crashed during attach",
+      "BUG-3"
+     ]
+    ],
+    "attach timeout on modem",
+    0.3
+   ],
+   "expected": "BUG-1",
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     [
+      "camera driver crashed on boot",
+      "CAM-12"
+     ],
+     [
+      "audio underrun during playback",
+      "AUD-3"
+     ],
+     [
+      "camera preview frozen",
+      "CAM-40"
+     ]
+    ],
+    "Bluetooth pairing failed",
+    0.2
+   ],
+   "expected": "NEW",
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     [
+      "kernel panic in wifi driver",
+      "RDAR-100"
+     ],
+     [
+      "kernel panic in usb stack",
+      "RDAR-200"
+     ],
+     [
+      "usb device not enumerated",
+      "RDAR-300"
+     ]
+    ],
+    "usb kernel panic",
+    0.4
+   ],
+   "expected": "RDAR-200",
+   "hidden": false
+  },
+  {
+   "args": [
+    [],
+    "anything at all",
+    0.1
+   ],
+   "expected": "NEW",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "disk full",
+      "B-1"
+     ]
+    ],
+    "",
+    0.1
+   ],
+   "expected": "NEW",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "disk full",
+      "B-1"
+     ]
+    ],
+    "!!! 404 ---",
+    0.1
+   ],
+   "expected": "NEW",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "",
+      "B-0"
+     ],
+     [
+      "disk full",
+      "B-1"
+     ]
+    ],
+    "disk full",
+    0.5
+   ],
+   "expected": "B-1",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "Disk FULL on /var",
+      "B-1"
+     ],
+     [
+      "disk full on /var",
+      "B-2"
+     ]
+    ],
+    "disk-full on var",
+    0.5
+   ],
+   "expected": "B-1",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "modem 12 reset",
+      "B-1"
+     ],
+     [
+      "modem reset 99",
+      "B-2"
+     ]
+    ],
+    "MODEM_RESET 7",
+    0.9
+   ],
+   "expected": "B-1",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "gpu hang",
+      "G-1"
+     ],
+     [
+      "gpu hang",
+      "G-1b"
+     ],
+     [
+      "display flicker",
+      "D-1"
+     ]
+    ],
+    "gpu hang thermal throttle detected",
+    0.5
+   ],
+   "expected": "NEW",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "attach attach",
+      "B-1"
+     ],
+     [
+      "timeout failed",
+      "B-2"
+     ],
+     [
+      "failed crash attach",
+      "B-3"
+     ]
+    ],
+    "attach timeout",
+    0.2
+   ],
+   "expected": "B-2",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "crash crash crash crash in camera",
+      "C-1"
+     ],
+     [
+      "camera crash",
+      "C-2"
+     ],
+     [
+      "camera timeout",
+      "C-3"
+     ]
+    ],
+    "camera crash crash crash",
+    0.3
+   ],
+   "expected": "C-1",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "watchdog reset",
+      "W-1"
+     ]
+    ],
+    "watchdog reset",
+    0.99
+   ],
+   "expected": "W-1",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "watchdog reset",
+      "W-1"
+     ],
+     [
+      "watchdog timeout",
+      "W-2"
+     ]
+    ],
+    "watchdog",
+    0.8
+   ],
+   "expected": "NEW",
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     [
+      "thermal link update 85",
+      "BUG-1000"
+     ],
+     [
+      "voltage audio memory kernel crash usb",
+      "BUG-1001"
+     ],
+     [
+      "attach kernel voltage panic modem firmware boot 78",
+      "BUG-1002"
+     ],
+     [
+      "retry signature invalid voltage panic",
+      "BUG-1003"
+     ],
+     [
+      "rail gpu nfc failed signature camera crash",
+      "BUG-1004"
+     ],
+     [
+      "camera reset gpu kernel 708",
+      "BUG-1005"
+     ],
+     [
+      "voltage kernel nfc crash scan scan",
+      "BUG-1006"
+     ],
+     [
+      "pcie signature boot boot",
+      "BUG-1007"
+     ],
+     [
+      "signature crash reset thermal 45",
+      "BUG-1008"
+     ],
+     [
+      "firmware usb display wifi nfc watchdog usb 704",
+      "BUG-1009"
+     ],
+     [
+      "gpu gpu gpu reset usb watchdog down kernel bt 410",
+      "BUG-1010"
+     ],
+     [
+      "scan driver down invalid reset signature display modem",
+      "BUG-1011"
+     ],
+     [
+      "sensor sensor 630",
+      "BUG-1012"
+     ],
+     [
+      "pcie display down link retry rail 63",
+      "BUG-1013"
+     ],
+     [
+      "failed assert kernel watchdog down bt",
+      "BUG-1014"
+     ],
+     [
+      "pcie sensor update panic bt",
+      "BUG-1015"
+     ],
+     [
+      "display firmware display retry boot camera panic",
+      "BUG-1016"
+     ],
+     [
+      "failed update sensor power",
+      "BUG-1017"
+     ],
+     [
+      "camera kernel baseband kernel nfc scan link pcie kernel",
+      "BUG-1018"
+     ],
+     [
+      "camera retry timeout link wifi thermal 905",
+      "BUG-1019"
+     ],
+     [
+      "voltage modem camera modem 312",
+      "BUG-1020"
+     ],
+     [
+      "timeout camera update voltage",
+      "BUG-1021"
+     ],
+     [
+      "thermal assert",
+      "BUG-1022"
+     ],
+     [
+      "retry retry watchdog rail 243",
+      "BUG-1023"
+     ],
+     [
+      "down boot timeout rail wifi audio thermal panic assert 251",
+      "BUG-1024"
+     ],
+     [
+      "gpu boot 840",
+      "BUG-1025"
+     ],
+     [
+      "display boot timeout down power firmware retry",
+      "BUG-1026"
+     ],
+     [
+      "power crash bt modem attach attach retry assert down 144",
+      "BUG-1027"
+     ],
+     [
+      "attach camera",
+      "BUG-1028"
+     ],
+     [
+      "wifi memory display 506",
+      "BUG-1029"
+     ],
+     [
+      "audio wifi memory camera 586",
+      "BUG-1030"
+     ],
+     [
+      "usb thermal failed 948",
+      "BUG-1031"
+     ],
+     [
+      "rail display display baseband watchdog",
+      "BUG-1032"
+     ],
+     [
+      "leak assert firmware thermal sensor 695",
+      "BUG-1033"
+     ],
+     [
+      "display invalid kernel rail baseband wifi link link 731",
+      "BUG-1034"
+     ],
+     [
+      "display signature",
+      "BUG-1035"
+     ],
+     [
+      "sensor thermal audio nfc 646",
+      "BUG-1036"
+     ],
+     [
+      "voltage audio watchdog invalid usb modem gpu gpu bt",
+      "BUG-1037"
+     ],
+     [
+      "crash baseband update driver power 726",
+      "BUG-1038"
+     ],
+     [
+      "panic scan timeout gpu",
+      "BUG-1039"
+     ],
+     [
+      "firmware invalid display scan",
+      "BUG-1040"
+     ],
+     [
+      "bt nfc 317",
+      "BUG-1041"
+     ],
+     [
+      "camera gpu baseband panic",
+      "BUG-1042"
+     ],
+     [
+      "gpu kernel wifi assert pcie bt down gpu",
+      "BUG-1043"
+     ],
+     [
+      "scan scan memory thermal memory attach power 284",
+      "BUG-1044"
+     ],
+     [
+      "signature failed rail baseband sensor attach 757",
+      "BUG-1045"
+     ],
+     [
+      "boot gpu baseband timeout failed power",
+      "BUG-1046"
+     ],
+     [
+      "audio wifi nfc display failed bt gpu wifi link",
+      "BUG-1047"
+     ],
+     [
+      "failed down gpu usb link usb leak bt panic 11",
+      "BUG-1048"
+     ],
+     [
+      "audio nfc nfc crash sensor",
+      "BUG-1049"
+     ],
+     [
+      "memory sensor display thermal voltage",
+      "BUG-1050"
+     ],
+     [
+      "display timeout 716",
+      "BUG-1051"
+     ],
+     [
+      "signature rail baseband assert bt reset memory baseband crash",
+      "BUG-1052"
+     ],
+     [
+      "pcie crash rail reset 610",
+      "BUG-1053"
+     ],
+     [
+      "failed rail modem",
+      "BUG-1054"
+     ],
+     [
+      "bt power memory nfc voltage gpu kernel attach modem 338",
+      "BUG-1055"
+     ],
+     [
+      "pcie wifi 61",
+      "BUG-1056"
+     ],
+     [
+      "display baseband audio modem gpu leak",
+      "BUG-1057"
+     ],
+     [
+      "update retry 842",
+      "BUG-1058"
+     ],
+     [
+      "leak gpu sensor",
+      "BUG-1059"
+     ],
+     [
+      "driver retry display 315",
+      "BUG-1060"
+     ],
+     [
+      "thermal sensor",
+      "BUG-1061"
+     ],
+     [
+      "failed panic audio kernel pcie voltage retry",
+      "BUG-1062"
+     ],
+     [
+      "watchdog bt watchdog",
+      "BUG-1063"
+     ],
+     [
+      "bt signature scan baseband gpu",
+      "BUG-1064"
+     ],
+     [
+      "signature firmware voltage update scan failed audio display kernel 263",
+      "BUG-1065"
+     ],
+     [
+      "bt baseband 999",
+      "BUG-1066"
+     ],
+     [
+      "camera modem memory pcie 932",
+      "BUG-1067"
+     ],
+     [
+      "bt watchdog leak wifi voltage modem failed thermal 536",
+      "BUG-1068"
+     ],
+     [
+      "nfc bt camera wifi 670",
+      "BUG-1069"
+     ],
+     [
+      "panic timeout leak pcie invalid nfc 933",
+      "BUG-1070"
+     ],
+     [
+      "gpu retry panic power down link attach 702",
+      "BUG-1071"
+     ],
+     [
+      "panic watchdog leak display firmware watchdog power nfc",
+      "BUG-1072"
+     ],
+     [
+      "modem assert update display camera rail watchdog timeout",
+      "BUG-1073"
+     ],
+     [
+      "panic retry audio link firmware",
+      "BUG-1074"
+     ],
+     [
+      "timeout crash kernel thermal panic 275",
+      "BUG-1075"
+     ],
+     [
+      "boot power pcie kernel reset invalid",
+      "BUG-1076"
+     ],
+     [
+      "nfc signature",
+      "BUG-1077"
+     ],
+     [
+      "driver pcie panic",
+      "BUG-1078"
+     ],
+     [
+      "driver driver invalid thermal panic",
+      "BUG-1079"
+     ],
+     [
+      "kernel signature firmware audio invalid 576",
+      "BUG-1080"
+     ],
+     [
+      "baseband timeout failed thermal 621",
+      "BUG-1081"
+     ],
+     [
+      "timeout invalid kernel usb attach",
+      "BUG-1082"
+     ],
+     [
+      "panic failed 926",
+      "BUG-1083"
+     ],
+     [
+      "wifi camera gpu 807",
+      "BUG-1084"
+     ],
+     [
+      "pcie memory sensor scan reset leak nfc driver timeout 76",
+      "BUG-1085"
+     ],
+     [
+      "timeout rail reset signature signature nfc pcie display 266",
+      "BUG-1086"
+     ],
+     [
+      "down assert nfc",
+      "BUG-1087"
+     ],
+     [
+      "usb sensor gpu kernel",
+      "BUG-1088"
+     ],
+     [
+      "modem gpu crash 422",
+      "BUG-1089"
+     ],
+     [
+      "reset driver watchdog 12",
+      "BUG-1090"
+     ],
+     [
+      "firmware rail driver power scan assert camera 651",
+      "BUG-1091"
+     ],
+     [
+      "rail sensor firmware gpu update link rail link kernel 755",
+      "BUG-1092"
+     ],
+     [
+      "gpu invalid boot failed leak invalid",
+      "BUG-1093"
+     ],
+     [
+      "panic leak leak driver leak bt assert 319",
+      "BUG-1094"
+     ],
+     [
+      "power signature timeout kernel link invalid kernel scan audio 292",
+      "BUG-1095"
+     ],
+     [
+      "usb link down sensor voltage sensor link firmware",
+      "BUG-1096"
+     ],
+     [
+      "invalid panic crash rail boot retry",
+      "BUG-1097"
+     ],
+     [
+      "camera sensor modem crash failed bt firmware voltage crash",
+      "BUG-1098"
+     ],
+     [
+      "thermal watchdog baseband power attach audio bt 620",
+      "BUG-1099"
+     ],
+     [
+      "leak modem",
+      "BUG-1100"
+     ],
+     [
+      "thermal timeout 189",
+      "BUG-1101"
+     ],
+     [
+      "boot invalid modem voltage usb voltage power driver",
+      "BUG-1102"
+     ],
+     [
+      "timeout modem failed update timeout update 519",
+      "BUG-1103"
+     ],
+     [
+      "watchdog usb camera sensor down pcie memory 451",
+      "BUG-1104"
+     ],
+     [
+      "sensor assert",
+      "BUG-1105"
+     ],
+     [
+      "reset usb scan kernel modem boot invalid update",
+      "BUG-1106"
+     ],
+     [
+      "kernel audio reset timeout assert timeout retry 420",
+      "BUG-1107"
+     ],
+     [
+      "attach signature",
+      "BUG-1108"
+     ],
+     [
+      "thermal boot sensor failed boot modem 478",
+      "BUG-1109"
+     ],
+     [
+      "pcie bt scan reset memory watchdog memory audio",
+      "BUG-1110"
+     ],
+     [
+      "memory nfc assert memory scan sensor baseband camera usb",
+      "BUG-1111"
+     ],
+     [
+      "leak power assert crash audio invalid gpu 611",
+      "BUG-1112"
+     ],
+     [
+      "sensor retry audio audio signature link invalid memory 801",
+      "BUG-1113"
+     ],
+     [
+      "link firmware camera firmware wifi failed",
+      "BUG-1114"
+     ],
+     [
+      "thermal update bt invalid",
+      "BUG-1115"
+     ],
+     [
+      "modem power attach down leak baseband signature link scan 672",
+      "BUG-1116"
+     ],
+     [
+      "crash pcie power signature",
+      "BUG-1117"
+     ],
+     [
+      "nfc thermal retry 838",
+      "BUG-1118"
+     ],
+     [
+      "invalid retry camera scan baseband assert crash gpu 953",
+      "BUG-1119"
+     ],
+     [
+      "firmware nfc rail kernel boot boot crash 728",
+      "BUG-1120"
+     ],
+     [
+      "rail invalid bt 42",
+      "BUG-1121"
+     ],
+     [
+      "failed pcie update panic",
+      "BUG-1122"
+     ],
+     [
+      "pcie nfc timeout gpu",
+      "BUG-1123"
+     ],
+     [
+      "gpu assert pcie failed assert audio signature",
+      "BUG-1124"
+     ],
+     [
+      "kernel retry camera nfc attach update boot 179",
+      "BUG-1125"
+     ],
+     [
+      "modem camera bt attach firmware",
+      "BUG-1126"
+     ],
+     [
+      "display camera sensor failed wifi failed power baseband update 888",
+      "BUG-1127"
+     ],
+     [
+      "sensor link down camera assert memory",
+      "BUG-1128"
+     ],
+     [
+      "voltage bt audio sensor",
+      "BUG-1129"
+     ],
+     [
+      "reset retry thermal attach signature down reset",
+      "BUG-1130"
+     ],
+     [
+      "driver bt camera reset panic camera 170",
+      "BUG-1131"
+     ],
+     [
+      "modem sensor rail reset audio attach rail update baseband 427",
+      "BUG-1132"
+     ],
+     [
+      "failed crash modem crash usb sensor update gpu 370",
+      "BUG-1133"
+     ],
+     [
+      "boot retry audio down voltage",
+      "BUG-1134"
+     ],
+     [
+      "rail assert 933",
+      "BUG-1135"
+     ],
+     [
+      "invalid scan update",
+      "BUG-1136"
+     ],
+     [
+      "firmware modem retry",
+      "BUG-1137"
+     ],
+     [
+      "reset down audio timeout 969",
+      "BUG-1138"
+     ],
+     [
+      "boot retry rail driver 280",
+      "BUG-1139"
+     ],
+     [
+      "assert rail display watchdog usb update invalid",
+      "BUG-1140"
+     ],
+     [
+      "crash sensor update modem panic 698",
+      "BUG-1141"
+     ],
+     [
+      "reset invalid link signature driver firmware",
+      "BUG-1142"
+     ],
+     [
+      "memory update 286",
+      "BUG-1143"
+     ],
+     [
+      "bt modem bt nfc reset audio 416",
+      "BUG-1144"
+     ],
+     [
+      "usb attach assert memory",
+      "BUG-1145"
+     ],
+     [
+      "display signature boot 510",
+      "BUG-1146"
+     ],
+     [
+      "kernel pcie kernel camera signature",
+      "BUG-1147"
+     ],
+     [
+      "gpu retry camera 431",
+      "BUG-1148"
+     ],
+     [
+      "camera memory",
+      "BUG-1149"
+     ],
+     [
+      "baseband modem 358",
+      "BUG-1150"
+     ],
+     [
+      "reset reset display power rail nfc update memory rail 460",
+      "BUG-1151"
+     ],
+     [
+      "driver link gpu leak retry display",
+      "BUG-1152"
+     ],
+     [
+      "thermal timeout update nfc reset power memory gpu firmware 710",
+      "BUG-1153"
+     ],
+     [
+      "audio firmware invalid boot 272",
+      "BUG-1154"
+     ],
+     [
+      "modem baseband pcie attach update camera",
+      "BUG-1155"
+     ],
+     [
+      "timeout watchdog boot rail",
+      "BUG-1156"
+     ],
+     [
+      "signature pcie",
+      "BUG-1157"
+     ],
+     [
+      "nfc failed update update 553",
+      "BUG-1158"
+     ],
+     [
+      "invalid voltage crash timeout",
+      "BUG-1159"
+     ],
+     [
+      "power retry 796",
+      "BUG-1160"
+     ],
+     [
+      "pcie signature scan 467",
+      "BUG-1161"
+     ],
+     [
+      "timeout down link power down rail rail sensor link",
+      "BUG-1162"
+     ],
+     [
+      "timeout down firmware watchdog sensor wifi attach firmware thermal 736",
+      "BUG-1163"
+     ],
+     [
+      "scan sensor attach leak",
+      "BUG-1164"
+     ],
+     [
+      "baseband assert gpu assert invalid 814",
+      "BUG-1165"
+     ],
+     [
+      "retry attach voltage scan 448",
+      "BUG-1166"
+     ],
+     [
+      "crash invalid kernel bt bt attach update bt",
+      "BUG-1167"
+     ],
+     [
+      "rail memory display bt modem 647",
+      "BUG-1168"
+     ],
+     [
+      "baseband usb driver kernel assert 574",
+      "BUG-1169"
+     ],
+     [
+      "firmware signature display nfc crash 115",
+      "BUG-1170"
+     ],
+     [
+      "firmware retry sensor pcie scan assert",
+      "BUG-1171"
+     ],
+     [
+      "failed modem",
+      "BUG-1172"
+     ],
+     [
+      "nfc memory modem nfc wifi memory attach power display",
+      "BUG-1173"
+     ],
+     [
+      "retry audio down driver signature wifi 991",
+      "BUG-1174"
+     ],
+     [
+      "memory voltage leak panic bt leak",
+      "BUG-1175"
+     ],
+     [
+      "memory watchdog signature kernel gpu kernel",
+      "BUG-1176"
+     ],
+     [
+      "boot usb link panic rail voltage down 865",
+      "BUG-1177"
+     ],
+     [
+      "invalid scan voltage timeout scan sensor 386",
+      "BUG-1178"
+     ],
+     [
+      "timeout camera memory usb attach panic memory link",
+      "BUG-1179"
+     ],
+     [
+      "kernel down update wifi pcie wifi 41",
+      "BUG-1180"
+     ],
+     [
+      "leak bt rail memory attach panic thermal",
+      "BUG-1181"
+     ],
+     [
+      "scan power signature wifi timeout",
+      "BUG-1182"
+     ],
+     [
+      "baseband pcie wifi usb 987",
+      "BUG-1183"
+     ],
+     [
+      "modem crash 355",
+      "BUG-1184"
+     ],
+     [
+      "reset thermal wifi 992",
+      "BUG-1185"
+     ],
+     [
+      "gpu firmware audio link retry display boot down thermal 852",
+      "BUG-1186"
+     ],
+     [
+      "retry camera",
+      "BUG-1187"
+     ],
+     [
+      "link modem panic sensor timeout update kernel pcie power",
+      "BUG-1188"
+     ],
+     [
+      "invalid crash panic sensor leak 40",
+      "BUG-1189"
+     ],
+     [
+      "pcie memory crash bt failed 253",
+      "BUG-1190"
+     ],
+     [
+      "rail failed power usb signature boot power update voltage",
+      "BUG-1191"
+     ],
+     [
+      "modem signature update 713",
+      "BUG-1192"
+     ],
+     [
+      "crash pcie thermal kernel kernel boot 101",
+      "BUG-1193"
+     ],
+     [
+      "audio down bt link thermal 65",
+      "BUG-1194"
+     ],
+     [
+      "retry power update panic crash pcie firmware voltage memory",
+      "BUG-1195"
+     ],
+     [
+      "kernel kernel down sensor audio invalid",
+      "BUG-1196"
+     ],
+     [
+      "update assert thermal invalid power panic 197",
+      "BUG-1197"
+     ],
+     [
+      "reset display update power rail 319",
+      "BUG-1198"
+     ],
+     [
+      "link audio 680",
+      "BUG-1199"
+     ],
+     [
+      "link failed failed panic rail rail gpu",
+      "BUG-1200"
+     ],
+     [
+      "nfc failed usb sensor display power voltage voltage 986",
+      "BUG-1201"
+     ],
+     [
+      "sensor watchdog link usb modem crash 102",
+      "BUG-1202"
+     ],
+     [
+      "timeout nfc modem power",
+      "BUG-1203"
+     ],
+     [
+      "invalid assert voltage wifi invalid panic invalid retry invalid",
+      "BUG-1204"
+     ],
+     [
+      "bt crash reset assert panic nfc watchdog",
+      "BUG-1205"
+     ],
+     [
+      "camera gpu update retry down invalid pcie pcie",
+      "BUG-1206"
+     ],
+     [
+      "rail reset update bt voltage pcie",
+      "BUG-1207"
+     ],
+     [
+      "sensor timeout panic 871",
+      "BUG-1208"
+     ],
+     [
+      "scan kernel link 911",
+      "BUG-1209"
+     ],
+     [
+      "baseband display gpu",
+      "BUG-1210"
+     ],
+     [
+      "link leak modem leak kernel",
+      "BUG-1211"
+     ],
+     [
+      "attach display",
+      "BUG-1212"
+     ],
+     [
+      "baseband camera 56",
+      "BUG-1213"
+     ],
+     [
+      "invalid signature",
+      "BUG-1214"
+     ],
+     [
+      "bt rail crash",
+      "BUG-1215"
+     ],
+     [
+      "audio sensor power voltage bt failed modem gpu 859",
+      "BUG-1216"
+     ],
+     [
+      "assert memory wifi driver gpu firmware 385",
+      "BUG-1217"
+     ],
+     [
+      "rail invalid boot",
+      "BUG-1218"
+     ],
+     [
+      "pcie voltage",
+      "BUG-1219"
+     ],
+     [
+      "gpu leak firmware modem reset",
+      "BUG-1220"
+     ],
+     [
+      "driver reset gpu",
+      "BUG-1221"
+     ],
+     [
+      "scan invalid reset failed thermal nfc voltage",
+      "BUG-1222"
+     ],
+     [
+      "link signature 73",
+      "BUG-1223"
+     ],
+     [
+      "display leak assert memory watchdog watchdog retry",
+      "BUG-1224"
+     ],
+     [
+      "thermal crash crash crash retry",
+      "BUG-1225"
+     ],
+     [
+      "link gpu kernel failed",
+      "BUG-1226"
+     ],
+     [
+      "attach voltage failed boot camera kernel pcie",
+      "BUG-1227"
+     ],
+     [
+      "usb firmware kernel audio reset kernel panic failed boot",
+      "BUG-1228"
+     ],
+     [
+      "kernel bt memory sensor camera rail scan",
+      "BUG-1229"
+     ],
+     [
+      "display camera crash bt boot watchdog leak",
+      "BUG-1230"
+     ],
+     [
+      "firmware down nfc crash wifi",
+      "BUG-1231"
+     ],
+     [
+      "firmware gpu timeout panic audio wifi scan crash 416",
+      "BUG-1232"
+     ],
+     [
+      "gpu audio voltage leak kernel reset update thermal failed",
+      "BUG-1233"
+     ],
+     [
+      "camera retry boot rail memory memory thermal signature pcie",
+      "BUG-1234"
+     ],
+     [
+      "nfc display wifi 928",
+      "BUG-1235"
+     ],
+     [
+      "boot down baseband",
+      "BUG-1236"
+     ],
+     [
+      "baseband update failed watchdog update nfc panic 26",
+      "BUG-1237"
+     ],
+     [
+      "audio rail sensor 880",
+      "BUG-1238"
+     ],
+     [
+      "display scan",
+      "BUG-1239"
+     ],
+     [
+      "leak leak display crash signature nfc modem camera",
+      "BUG-1240"
+     ],
+     [
+      "display rail audio reset nfc rail leak retry gpu",
+      "BUG-1241"
+     ],
+     [
+      "down scan wifi",
+      "BUG-1242"
+     ],
+     [
+      "firmware signature invalid timeout signature link",
+      "BUG-1243"
+     ],
+     [
+      "assert camera timeout gpu audio thermal update 202",
+      "BUG-1244"
+     ],
+     [
+      "reset timeout 335",
+      "BUG-1245"
+     ],
+     [
+      "bt kernel watchdog pcie update thermal pcie",
+      "BUG-1246"
+     ],
+     [
+      "nfc boot down boot audio baseband",
+      "BUG-1247"
+     ],
+     [
+      "baseband audio leak",
+      "BUG-1248"
+     ],
+     [
+      "failed driver power attach wifi 774",
+      "BUG-1249"
+     ],
+     [
+      "memory timeout firmware 292",
+      "BUG-1250"
+     ],
+     [
+      "pcie rail reset",
+      "BUG-1251"
+     ],
+     [
+      "firmware rail firmware watchdog kernel voltage 528",
+      "BUG-1252"
+     ],
+     [
+      "wifi invalid link thermal baseband",
+      "BUG-1253"
+     ],
+     [
+      "invalid assert",
+      "BUG-1254"
+     ],
+     [
+      "invalid watchdog",
+      "BUG-1255"
+     ],
+     [
+      "failed signature scan camera attach modem",
+      "BUG-1256"
+     ],
+     [
+      "kernel timeout pcie failed thermal firmware 740",
+      "BUG-1257"
+     ],
+     [
+      "kernel pcie signature",
+      "BUG-1258"
+     ],
+     [
+      "sensor retry leak reset scan retry nfc power",
+      "BUG-1259"
+     ],
+     [
+      "failed driver signature scan wifi kernel baseband sensor",
+      "BUG-1260"
+     ],
+     [
+      "audio assert baseband retry rail rail reset",
+      "BUG-1261"
+     ],
+     [
+      "firmware signature watchdog baseband voltage link 838",
+      "BUG-1262"
+     ],
+     [
+      "voltage retry timeout display firmware pcie reset",
+      "BUG-1263"
+     ],
+     [
+      "rail signature assert",
+      "BUG-1264"
+     ],
+     [
+      "camera gpu",
+      "BUG-1265"
+     ],
+     [
+      "audio boot failed signature",
+      "BUG-1266"
+     ],
+     [
+      "link audio down voltage down",
+      "BUG-1267"
+     ],
+     [
+      "voltage update pcie modem modem 302",
+      "BUG-1268"
+     ],
+     [
+      "attach leak update assert nfc memory panic timeout usb",
+      "BUG-1269"
+     ],
+     [
+      "panic crash gpu 119",
+      "BUG-1270"
+     ],
+     [
+      "nfc boot bt gpu attach boot boot failed sensor",
+      "BUG-1271"
+     ],
+     [
+      "gpu panic boot kernel leak pcie pcie",
+      "BUG-1272"
+     ],
+     [
+      "leak gpu driver bt signature firmware power panic failed 916",
+      "BUG-1273"
+     ],
+     [
+      "memory thermal 319",
+      "BUG-1274"
+     ],
+     [
+      "timeout nfc baseband",
+      "BUG-1275"
+     ],
+     [
+      "boot crash signature audio reset pcie 700",
+      "BUG-1276"
+     ],
+     [
+      "sensor retry invalid camera display assert 626",
+      "BUG-1277"
+     ],
+     [
+      "down wifi gpu down down firmware",
+      "BUG-1278"
+     ],
+     [
+      "reset panic assert nfc driver leak 256",
+      "BUG-1279"
+     ],
+     [
+      "baseband panic watchdog memory gpu",
+      "BUG-1280"
+     ],
+     [
+      "sensor usb failed signature assert",
+      "BUG-1281"
+     ],
+     [
+      "thermal pcie",
+      "BUG-1282"
+     ],
+     [
+      "down sensor display retry firmware bt audio assert",
+      "BUG-1283"
+     ],
+     [
+      "baseband panic baseband invalid invalid driver sensor 248",
+      "BUG-1284"
+     ],
+     [
+      "thermal audio update 482",
+      "BUG-1285"
+     ],
+     [
+      "invalid scan modem display sensor scan memory failed",
+      "BUG-1286"
+     ],
+     [
+      "link display firmware display 920",
+      "BUG-1287"
+     ],
+     [
+      "voltage camera timeout baseband boot power firmware baseband reset",
+      "BUG-1288"
+     ],
+     [
+      "invalid sensor 46",
+      "BUG-1289"
+     ],
+     [
+      "driver update audio audio reset 872",
+      "BUG-1290"
+     ],
+     [
+      "failed panic wifi boot kernel audio 608",
+      "BUG-1291"
+     ],
+     [
+      "link display boot assert down leak",
+      "BUG-1292"
+     ],
+     [
+      "voltage firmware",
+      "BUG-1293"
+     ],
+     [
+      "attach signature",
+      "BUG-1294"
+     ],
+     [
+      "modem assert voltage display memory sensor camera attach 905",
+      "BUG-1295"
+     ],
+     [
+      "audio assert signature invalid assert leak kernel camera update 71",
+      "BUG-1296"
+     ],
+     [
+      "invalid failed attach camera nfc firmware attach leak",
+      "BUG-1297"
+     ],
+     [
+      "boot leak signature audio failed voltage",
+      "BUG-1298"
+     ],
+     [
+      "update kernel display assert sensor timeout 129",
+      "BUG-1299"
+     ]
+    ],
+    "crash power wifi firmware invalid panic unknownterm",
+    0.4
+   ],
+   "expected": "BUG-1232",
+   "hidden": true
+  }
+ ]
+}

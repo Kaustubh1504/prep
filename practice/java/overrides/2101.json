@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public Map<String, Object> summarizeLogs(String[] lines) {\n        // keys: status_counts, top_endpoints, error_rate, total_bytes, malformed\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "summarizeLogs",
+  "notes": "A valid line is exactly IP IDENT USER [TIMESTAMP] \"METHOD PATH PROTOCOL\" STATUS BYTES, single-space separated (TIMESTAMP is everything inside the brackets; every other field has no spaces), STATUS has exactly 3 digits and BYTES is a non-negative integer or \"-\" (counts as 0); any other line (including blank ones) only increments \"malformed\". Return {\"status_counts\": {status as a string: count}, \"top_endpoints\": up to 5 [path, count] pairs sorted by count desc then path asc, \"error_rate\": 4xx+5xx lines / valid lines (0.0 if none), \"total_bytes\": int, \"malformed\": int}; PATH is used as-is. In Java, return a Map<String, Object> holding a Map<String, Integer>, a List<List<Object>> of {path, count}, a double, a long (bytes can exceed int) and an int."
+}

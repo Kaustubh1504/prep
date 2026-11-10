@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PracHub Saver</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    label { display: block; margin: 12px 0 4px; }
+    button { margin: 16px 8px 0 0; padding: 6px 14px; }
+    #status { margin-top: 20px; padding: 12px; background: #f3f3f3; border-radius: 6px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>PracHub Saver</h1>
+  <p>Log in to prachub.com in this browser first. Rendered HTML is saved to <code>Downloads/prachub/</code>.</p>
+  <label>Questions CSV (needs <code>rank</code> and <code>url</code> columns)</label>
+  <input type="file" id="csv" accept=".csv">
+  <label>Seconds between pages</label>
+  <input type="number" id="delay" value="8" min="5">
+  <div>
+    <button id="start">Start / Resume</button>
+    <button id="stop">Stop</button>
+    <button id="reset">Reset progress</button>
+  </div>
+  <div id="status">Idle</div>
+  <script src="control.js"></script>
+</body>
+</html>

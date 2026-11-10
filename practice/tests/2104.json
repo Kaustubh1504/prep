@@ -1,0 +1,307 @@
+{
+ "rank": 2104,
+ "kind": "function",
+ "entry": "winner",
+ "starter": "from typing import Dict, List\n\n\ndef winner(rules: Dict[str, List[str]], a: str, b: str) -> str:\n    pass\n",
+ "compare": "exact",
+ "notes": "rules maps each valid move to the moves it beats (names are case-sensitive). Return \"invalid\" if a or b is not a key of rules (checked first), the winning move if one beats the other, otherwise \"tie\" (same move, or neither beats the other).",
+ "tests": [
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "rock",
+    "scissors"
+   ],
+   "expected": "rock"
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "rock",
+    "rock"
+   ],
+   "expected": "tie"
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "rock",
+    "paper"
+   ],
+   "expected": "paper"
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "paper",
+    "rock"
+   ],
+   "expected": "paper",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "scissors",
+    "paper"
+   ],
+   "expected": "scissors",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "paper",
+    "scissors"
+   ],
+   "expected": "scissors",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "lizard",
+    "rock"
+   ],
+   "expected": "invalid",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "rock",
+    "Rock"
+   ],
+   "expected": "invalid",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors",
+      "lizard"
+     ],
+     "paper": [
+      "rock",
+      "spock"
+     ],
+     "scissors": [
+      "paper",
+      "lizard"
+     ],
+     "lizard": [
+      "spock",
+      "paper"
+     ],
+     "spock": [
+      "scissors",
+      "rock"
+     ]
+    },
+    "lizard",
+    "spock"
+   ],
+   "expected": "lizard",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors",
+      "lizard"
+     ],
+     "paper": [
+      "rock",
+      "spock"
+     ],
+     "scissors": [
+      "paper",
+      "lizard"
+     ],
+     "lizard": [
+      "spock",
+      "paper"
+     ],
+     "spock": [
+      "scissors",
+      "rock"
+     ]
+    },
+    "spock",
+    "lizard"
+   ],
+   "expected": "lizard",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors",
+      "lizard"
+     ],
+     "paper": [
+      "rock",
+      "spock"
+     ],
+     "scissors": [
+      "paper",
+      "lizard"
+     ],
+     "lizard": [
+      "spock",
+      "paper"
+     ],
+     "spock": [
+      "scissors",
+      "rock"
+     ]
+    },
+    "rock",
+    "lizard"
+   ],
+   "expected": "rock",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "scissors": [],
+     "water": []
+    },
+    "water",
+    "rock"
+   ],
+   "expected": "tie",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "scissors": [],
+     "water": []
+    },
+    "scissors",
+    "rock"
+   ],
+   "expected": "rock",
+   "hidden": true
+  },
+  {
+   "args": [
+    {},
+    "rock",
+    "rock"
+   ],
+   "expected": "invalid",
+   "hidden": true
+  },
+  {
+   "args": [
+    {
+     "rock": [
+      "scissors"
+     ],
+     "paper": [
+      "rock"
+     ],
+     "scissors": [
+      "paper"
+     ]
+    },
+    "",
+    "rock"
+   ],
+   "expected": "invalid",
+   "hidden": true
+  }
+ ]
+}

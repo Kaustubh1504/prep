@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public int solve(long m) {\n        \n        return 0;\n    }\n}\n",
+  "className": "Solution",
+  "method": "solve",
+  "notes": "m can be as large as 10^18, so it is a long."
+}

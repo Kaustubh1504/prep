@@ -1,0 +1,926 @@
+{
+ "rank": 2105,
+ "kind": "class",
+ "entry": "HtmlTree",
+ "starter": "from typing import List\n\n\nclass HtmlTree:\n    def __init__(self, html: str):\n        pass\n\n    def find_all(self, tag: str) -> List[str]:\n        pass\n\n    def get_text(self) -> str:\n        pass\n",
+ "compare": "exact",
+ "notes": "Tags are <name attrs...>, </name> or self-closing <name .../> (lowercase names; attributes ignored); text never contains \"<\" and is kept verbatim, whitespace included. find_all(tag) returns the text (all descendant text concatenated) of each matching element in document order (pre-order DFS); get_text() returns all text. A closing tag closes the nearest open element with that name (and any opened inside it), a closing tag with no open match is ignored, and unclosed elements end at the end of input.",
+ "tests": [
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<div><p>Hi</p><p>there</p></div>"
+    ],
+    [
+     "p"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "Hi",
+     "there"
+    ],
+    "Hithere"
+   ]
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "find_all",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<div><h1>Title</h1><p>Hello <b>big</b> world</p><span>!</span></div>"
+    ],
+    [
+     "p"
+    ],
+    [
+     "b"
+    ],
+    [
+     "div"
+    ],
+    [
+     "h1"
+    ],
+    [
+     "a"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "Hello big world"
+    ],
+    [
+     "big"
+    ],
+    [
+     "TitleHello big world!"
+    ],
+    [
+     "Title"
+    ],
+    [],
+    "TitleHello big world!"
+   ]
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<ul class=\"menu\"><li id=\"1\">One</li><li data-x=\"y\">Two</li></ul>"
+    ],
+    [
+     "li"
+    ],
+    [
+     "ul"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "One",
+     "Two"
+    ],
+    [
+     "OneTwo"
+    ],
+    "OneTwo"
+   ]
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<div>a<div>b<div>c</div>d</div>e</div>"
+    ],
+    [
+     "div"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "abcde",
+     "bcd",
+     "c"
+    ],
+    "abcde"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<p>  two  spaces </p>\n<p>\tTab</p>\n"
+    ],
+    [
+     "p"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "  two  spaces ",
+     "\tTab"
+    ],
+    "  two  spaces \n\tTab\n"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<p>line one<br/>line two<br />end</p><img src=\"a/b.png\"/>"
+    ],
+    [
+     "br"
+    ],
+    [
+     "img"
+    ],
+    [
+     "p"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "",
+     ""
+    ],
+    [
+     ""
+    ],
+    [
+     "line oneline twoend"
+    ],
+    "line oneline twoend"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "before<span></span>middle<span>x</span>after"
+    ],
+    [
+     "span"
+    ],
+    [
+     "div"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "",
+     "x"
+    ],
+    [],
+    "beforemiddlexafter"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     ""
+    ],
+    [
+     "p"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [],
+    ""
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "just text, no tags"
+    ],
+    [
+     "p"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [],
+    "just text, no tags"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<div><b><i>bold-italic</b>after-b</div>tail</p>"
+    ],
+    [
+     "div"
+    ],
+    [
+     "b"
+    ],
+    [
+     "i"
+    ],
+    [
+     "p"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "bold-italicafter-b"
+    ],
+    [
+     "bold-italic"
+    ],
+    [
+     "bold-italic"
+    ],
+    [],
+    "bold-italicafter-btail"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<section><p>first<p>second</section><p>third"
+    ],
+    [
+     "p"
+    ],
+    [
+     "section"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "firstsecond",
+     "second",
+     "third"
+    ],
+    [
+     "firstsecond"
+    ],
+    "firstsecondthird"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "</x></y>text<a>link</z></a>"
+    ],
+    [
+     "a"
+    ],
+    [
+     "x"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "link"
+    ],
+    [],
+    "textlink"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div>core</div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div>"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    "core"
+   ],
+   "hidden": true
+  },
+  {
+   "ops": [
+    "HtmlTree",
+    "find_all",
+    "find_all",
+    "find_all",
+    "find_all",
+    "find_all",
+    "get_text"
+   ],
+   "args": [
+    [
+     "<html><body><a href=\"/p?q=1\"><hr /></a>qux<div class=\"c\"><li href=\"/p?q=1\">x y</li><div class=\"c\">\n baz<span href=\"/p?q=1\"><br/></span>qux</div><a class=\"c\"><a href=\"/p?q=1\"> bazqux</a><ul href=\"/p?q=1\"><a class=\"c\">bar <hr />\n<li><li href=\"/p?q=1\">bar foo baz</li><p class=\"c\"> bazquxqux</p></li></a>qux<div class=\"c\"><div class=\"c\"><br/><a class=\"c\"> bazbar bar \n</a><hr /><div class=\"c\">bar </div></div><br/><div><span>foo bazbar </span><div class=\"c\">\nbar </div><div class=\"c\">foo</div></div></div><a class=\"c\"><span>\n<p class=\"c\">x yqux\n\n</p> baz</span><hr /></a></ul></a><li href=\"/p?q=1\"><p href=\"/p?q=1\"><p class=\"c\"><div href=\"/p?q=1\"><p>qux</p><li class=\"c\">bar foofoox y</li></div></p> baz</p><li class=\"c\"><span><ul href=\"/p?q=1\"> baz</ul></span><hr />bar <div class=\"c\">quxbar </div></li><li href=\"/p?q=1\"><span class=\"c\">bar <a href=\"/p?q=1\">foo</a>qux</span></li></li></div><span href=\"/p?q=1\">qux<a class=\"c\">bar <ul><div class=\"c\"><ul class=\"c\"><li>x y baz bazbar </li></ul> baz<hr /></div><li href=\"/p?q=1\">qux baz<a href=\"/p?q=1\">qux<div href=\"/p?q=1\"> baz\n</div><span class=\"c\">\n</span>bar </a><li class=\"c\"> baz</li></li><p href=\"/p?q=1\">\n<li><hr /><div href=\"/p?q=1\">\nqux\n baz</div></li></p></ul></a></span> baz<ul class=\"c\"><li href=\"/p?q=1\"><ul class=\"c\"><hr /></ul></li><span href=\"/p?q=1\"><p> baz</p> baz</span><span class=\"c\">\n<div href=\"/p?q=1\">bar <ul class=\"c\"><div>\n</div>x y</ul><ul class=\"c\"><div class=\"c\"><li href=\"/p?q=1\">x yfoo</li></div> baz</ul>qux</div></span></ul><hr />x y<br/> baz<div href=\"/p?q=1\"><a><ul class=\"c\"><div href=\"/p?q=1\"><li>x y<span>\n</span></li><hr />qux<ul>bar <div href=\"/p?q=1\">quxbar foo</div></ul></div><div href=\"/p?q=1\"><div href=\"/p?q=1\"><span>\nfoo</span></div>bar </div><br/><hr /></ul>x y baz</a></div><a class=\"c\"><a href=\"/p?q=1\"><p href=\"/p?q=1\"><li>x y<p><div href=\"/p?q=1\">x y</div><li>x y</li> baz</p><ul>\n<ul>bar quxbar qux</ul><span class=\"c\"> bazx ybar </span></ul> baz</li><li><ul href=\"/p?q=1\"><ul class=\"c\">x ybar </ul></ul><li class=\"c\"><a class=\"c\">\n</a><li class=\"c\"> baz</li><a class=\"c\">fooqux</a><a href=\"/p?q=1\">\nbar foo</a></li></li><a href=\"/p?q=1\"><span class=\"c\"><li>quxx yfoo baz</li><span>x yx y bazfoo</span><ul>bar \n</ul><li href=\"/p?q=1\">bar quxx y</li></span><a class=\"c\"><li>\n</li><ul class=\"c\">bar qux</ul><a href=\"/p?q=1\">x y baz bazfoo</a></a><span>fooquxx yfoo</span></a></p><p><div><span href=\"/p?q=1\"><ul href=\"/p?q=1\">qux baz\n</ul></span>quxfoo</div><a href=\"/p?q=1\">bar </a>bar </p><ul class=\"c\">bar </ul></a><p class=\"c\"><a><hr /><a><li class=\"c\"><li>bar x y</li><a href=\"/p?q=1\"> baz</a></li></a></a></p>qux</a><hr />bar x y<li><span class=\"c\"><hr /><br/><p class=\"c\"><br/><a class=\"c\"><ul>foo<br/></ul><li><ul> baz</ul><ul href=\"/p?q=1\">\nfooquxbar </ul><span class=\"c\"> bazfoo</span></li><span><ul href=\"/p?q=1\">\n\n</ul>foofoo</span><p href=\"/p?q=1\"> baz<br/><div> baz</div></p></a> baz<span href=\"/p?q=1\"><div class=\"c\">x y</div></span></p><ul><p href=\"/p?q=1\">x y</p><div>foo</div></ul></span>\n</li>bar <p><hr /><a href=\"/p?q=1\"><div href=\"/p?q=1\"><p><span href=\"/p?q=1\"><br/>\n<a>\n bazbar \n</a></span><ul href=\"/p?q=1\">fooqux</ul> bazbar </p><br/><p class=\"c\"><a> baz</a><p><p class=\"c\">x y bazqux</p><br/><div class=\"c\">\nqux</div></p><li class=\"c\"><span>quxqux</span> baz<hr /></li></p>qux</div></a><li href=\"/p?q=1\"><li href=\"/p?q=1\"> baz</li><a>foo<a class=\"c\"><p class=\"c\"><p>bar foo</p></p><span>qux<li>\n</li><span class=\"c\">bar </span></span><br/><ul class=\"c\"><li class=\"c\">bar bar </li></ul></a>bar <div href=\"/p?q=1\"><ul class=\"c\"><div> bazqux</div> baz<ul class=\"c\">quxquxfoo</ul></ul></div></a>bar </li></p><li href=\"/p?q=1\"><p href=\"/p?q=1\">x y<br/></p><div><br/>foo baz</div></li><li><ul href=\"/p?q=1\"><ul><p class=\"c\"><a class=\"c\"><a>bar </a>bar </a>qux<span href=\"/p?q=1\">x y</span></p></ul><ul>\n<span href=\"/p?q=1\"><li class=\"c\"> bazx y</li><ul>x y<a>bar x y baz</a><div href=\"/p?q=1\">qux\nx y baz</div></ul></span>qux<span><br/>bar </span></ul><li class=\"c\"><p class=\"c\">\n<li class=\"c\"><li>x yquxx ybar </li><li>quxx y baz</li></li> baz<ul href=\"/p?q=1\">foo</ul></p> baz</li></ul><div><p href=\"/p?q=1\">x y<span class=\"c\">qux<div class=\"c\"><li class=\"c\"> bazfoo</li><ul class=\"c\">quxfoox y</ul>\n</div></span></p></div></li><ul href=\"/p?q=1\"><hr /><p href=\"/p?q=1\"><span class=\"c\"><li><p href=\"/p?q=1\">\n<a> baz baz</a></p><div>x y</div></li>qux\n</span><ul><li href=\"/p?q=1\"><a class=\"c\">qux<p href=\"/p?q=1\">bar  baz</p><ul>qux\n</ul><a href=\"/p?q=1\"> bazx y</a></a><div href=\"/p?q=1\">x y<div href=\"/p?q=1\">x y\n\n</div>bar  baz</div><hr /></li>x y<a><span><p href=\"/p?q=1\">foofoo</p><ul>quxfoofoo baz</ul><span class=\"c\">\n bazquxx y</span></span>bar <br/></a>qux</ul><div><div href=\"/p?q=1\"> bazx y\n</div></div></p>\nx y</ul><div href=\"/p?q=1\">qux<hr /></div><li><ul><span class=\"c\">\nfoo<br/></span><div class=\"c\"><li><a><span> baz\nqux</span></a></li><li href=\"/p?q=1\"><a><span href=\"/p?q=1\">x y</span></a>x y<span href=\"/p?q=1\"><p href=\"/p?q=1\">\n bazfoo</p>qux<span href=\"/p?q=1\">foox y\n</span></span></li></div>qux<div href=\"/p?q=1\"><p><li href=\"/p?q=1\"><a class=\"c\">\nfoofoo</a></li><p>qux<a class=\"c\"> bazx yx yqux</a><ul class=\"c\">\nbar </ul></p><a class=\"c\">foo</a> baz</p><div class=\"c\">bar </div>foo<p><p><li class=\"c\">x y</li>qux baz</p><ul><a>x yx y</a>qux</ul><br/> baz</p></div></ul>\n\n</li><a class=\"c\"><div href=\"/p?q=1\"><p href=\"/p?q=1\"><a href=\"/p?q=1\"><a class=\"c\"><ul>quxqux baz</ul>bar <li>foo</li></a>\n</a></p>bar </div></a><a> bazbar <div><ul href=\"/p?q=1\">bar </ul></div></a><span class=\"c\"><br/>foox y baz</span>foo<hr /><div><div class=\"c\"><hr /><div href=\"/p?q=1\">bar </div><hr /></div></div><ul class=\"c\"><li><hr />x y<div href=\"/p?q=1\">x y<p class=\"c\">\n<hr />x ybar </p> baz<li href=\"/p?q=1\">foox yx y</li></div></li><div><p href=\"/p?q=1\">bar </p><li class=\"c\">foo\n</li>foo<span class=\"c\"><a><a><div href=\"/p?q=1\"> baz</div></a></a></span></div><p class=\"c\"><p class=\"c\"><br/><ul><ul class=\"c\"><a> bazfoo\n baz</a><p> bazbar </p></ul>bar <p href=\"/p?q=1\">qux<p class=\"c\">x y</p>x y</p><ul><ul href=\"/p?q=1\">quxbar  bazqux</ul><ul class=\"c\">x yquxfoo</ul></ul></ul><a class=\"c\"> baz<p href=\"/p?q=1\">\n</p><a href=\"/p?q=1\"><span class=\"c\">quxbar quxx y</span><div class=\"c\">bar foofoo</div>qux</a><a class=\"c\"><div>x ybar foo</div><div href=\"/p?q=1\">quxfoofoox y</div></a></a></p></p><p href=\"/p?q=1\"><p class=\"c\"><span href=\"/p?q=1\"><span><span class=\"c\">quxqux</span><div class=\"c\">foofoo\n\n</div><ul>bar foobar bar </ul></span>x y<a href=\"/p?q=1\"><span class=\"c\"> bazfoofoo</span>qux</a></span><div class=\"c\"><ul class=\"c\"><div href=\"/p?q=1\">foo</div></ul></div>x y<a href=\"/p?q=1\"><li href=\"/p?q=1\"> bazqux</li><p><span>bar foobar bar </span></p><span> bazfoo</span><p class=\"c\"><p>x y\n baz</p></p></a></p><hr /><ul>\n<p>\nfoo</p><br/><br/></ul><ul class=\"c\">bar <div class=\"c\"><li class=\"c\">quxx yfoobar </li><a href=\"/p?q=1\"><li>foox y\nfoo</li>bar x y<ul href=\"/p?q=1\"> bazx y</ul></a><ul><a class=\"c\">\n</a> baz baz\n</ul></div><ul><span href=\"/p?q=1\">qux</span>qux</ul><p href=\"/p?q=1\"><ul class=\"c\"><br/></ul><br/><a class=\"c\"><li href=\"/p?q=1\">x ybar \nqux</li>foo</a></p></ul></p></ul><p class=\"c\"><hr />x y<div href=\"/p?q=1\">x y<li>\n<ul href=\"/p?q=1\"><div>\nquxfoo</div>\nqux</ul>qux</li></div> baz</p>\n<ul>quxqux</ul>bar  baz<div class=\"c\">\n</div><hr />bar <a class=\"c\"><br/><p>\n<br/>\nbar </p></a><span><li href=\"/p?q=1\"><li><ul href=\"/p?q=1\">x y</ul><a>x y<ul class=\"c\">qux</ul>x y</a><ul href=\"/p?q=1\"><p class=\"c\"><hr /></p><span class=\"c\"><hr /><p class=\"c\"> bazfooqux</p></span><div><p href=\"/p?q=1\">\nbar </p><span href=\"/p?q=1\">x y baz\n</span></div><p class=\"c\"><span> bazx y bazfoo</span><li href=\"/p?q=1\">foo</li><a href=\"/p?q=1\">qux</a><a href=\"/p?q=1\">foofoo\n</a></p></ul></li>bar <li class=\"c\"><p href=\"/p?q=1\"><a class=\"c\"><hr /></a><p class=\"c\"><hr />x y<li>quxx y</li></p><li href=\"/p?q=1\"><ul href=\"/p?q=1\">qux</ul></li></p><li><br/><span class=\"c\"><p>\n</p><a>\n</a>quxfoo</span></li><br/><ul href=\"/p?q=1\"> baz</ul></li></li><div href=\"/p?q=1\">qux<br/></div> bazfoo</span>qux<span>bar <hr /></span><div class=\"c\">foo<div>qux</div><div>bar <ul href=\"/p?q=1\"><li>\n<ul href=\"/p?q=1\"><div href=\"/p?q=1\">x yquxbar qux</div></ul> baz</li></ul> baz</div></div><p class=\"c\"><span class=\"c\"><span> baz<div class=\"c\"><li href=\"/p?q=1\"><ul class=\"c\">\nx yquxfoo</ul><span href=\"/p?q=1\">\nx y baz</span></li>bar foo<ul><span class=\"c\">foobar bar </span>x y</ul></div> bazqux</span><span><br/>bar </span></span>bar </p>bar  bazqux<ul class=\"c\"><li class=\"c\"><a href=\"/p?q=1\"><span><span href=\"/p?q=1\"><a href=\"/p?q=1\">x yquxx y</a>qux<li>foo</li></span><span href=\"/p?q=1\">bar foo<p href=\"/p?q=1\">\nfoo</p>\n</span></span>\n<p class=\"c\">qux<li>bar </li><a class=\"c\"><p class=\"c\">quxx ybar </p><hr /><br/><ul href=\"/p?q=1\">x y</ul></a></p><li><p class=\"c\"><a> baz</a><div href=\"/p?q=1\"> baz</div>bar </p><br/>qux</li></a> baz</li>\n<hr /><span class=\"c\">bar <p class=\"c\"><ul class=\"c\">foo</ul><hr />foox y</p><span class=\"c\"><ul class=\"c\"><div>\n<a>x y baz</a>qux</div></ul></span></span></ul>qux<li href=\"/p?q=1\">foo</li><br/>qux<div class=\"c\"><a href=\"/p?q=1\">bar qux\n</a><li href=\"/p?q=1\"><div class=\"c\">bar x y</div></li></div>\nbar x y\n<a href=\"/p?q=1\"><span href=\"/p?q=1\"><p class=\"c\"><li class=\"c\">x y</li><li>bar </li>x yfoo</p>foo<span><li><div href=\"/p?q=1\"><br/>bar <li>x y</li></div></li><br/></span></span>qux</a><a class=\"c\"><div class=\"c\">foo<span> baz<li href=\"/p?q=1\"><br/><span href=\"/p?q=1\">bar <li>x y</li><div class=\"c\">fooquxbar </div><a>qux</a></span><ul class=\"c\"><span class=\"c\">x y baz</span><div class=\"c\">x yx y baz</div><a> bazfoo bazbar </a></ul></li></span><span href=\"/p?q=1\"><div href=\"/p?q=1\">\n<a><li>x y baz</li></a><hr /><span href=\"/p?q=1\">\n</span></div><ul href=\"/p?q=1\">x ybar quxbar </ul><li>x y<div href=\"/p?q=1\"><li class=\"c\">\n\nx y</li>bar \n<li> bazqux baz</li></div><div href=\"/p?q=1\"><div>qux</div></div></li><div><div> baz</div></div></span></div><p href=\"/p?q=1\"><li href=\"/p?q=1\">x y</li><br/>x y<span><li href=\"/p?q=1\"><div href=\"/p?q=1\"><span class=\"c\">bar x yx y baz</span></div>\n</li></span></p><ul class=\"c\"><p href=\"/p?q=1\">qux<div class=\"c\">quxfoo</div>x yfoo</p><ul href=\"/p?q=1\"><hr /><div href=\"/p?q=1\">qux<ul>quxquxqux<a class=\"c\">qux</a></ul>\n</div></ul></ul></a>qux<ul href=\"/p?q=1\">qux</ul><li class=\"c\">qux<hr /><a class=\"c\"><hr /><ul class=\"c\"><li><div><span href=\"/p?q=1\">qux baz\nqux</span><div>qux</div>foo<a href=\"/p?q=1\">foox y</a></div>bar foo</li>bar \n<li href=\"/p?q=1\">foo<a><li>x yx yfoo</li></a></li></ul>foo<br/></a></li><div class=\"c\"><li><span href=\"/p?q=1\"> baz</span><p class=\"c\">bar <span><a><a class=\"c\">\n baz</a></a><li class=\"c\"><li href=\"/p?q=1\"> bazquxx y</li>quxfoo</li></span></p>quxbar </li><hr /></div>bar qux<div href=\"/p?q=1\"><br/><li class=\"c\"><br/><a>x y</a></li></div><ul><hr /><div><ul><p><br/><li class=\"c\"><a href=\"/p?q=1\">foo</a>\n</li>qux</p></ul>x y<li class=\"c\"><li class=\"c\"><span class=\"c\"><p class=\"c\"> bazqux baz</p>x y</span><div href=\"/p?q=1\"><a href=\"/p?q=1\">x y bazx y</a><li class=\"c\">\n\nqux</li></div> baz<br/></li><div href=\"/p?q=1\"><span class=\"c\"><hr /></span><hr /></div><ul class=\"c\">qux<div href=\"/p?q=1\">foo</div><span href=\"/p?q=1\"><a class=\"c\">\nx y</a></span></ul><ul class=\"c\"><span href=\"/p?q=1\">qux<p class=\"c\">bar </p>foo</span> baz\n<a class=\"c\">x y<ul href=\"/p?q=1\">foo\nfoobar </ul>\n<a>qux\n</a></a></ul></li>qux</div><span href=\"/p?q=1\"><li class=\"c\"><a class=\"c\">\nfoo</a><span><li href=\"/p?q=1\"><li>bar quxfoo\n</li><ul>quxbar qux</ul></li></span> baz</li>foo<ul><hr /><span href=\"/p?q=1\"><div href=\"/p?q=1\"><ul class=\"c\">foo\n</ul><p class=\"c\"> bazfoofoox y</p><div>qux</div></div>x y</span><p class=\"c\">foo<ul href=\"/p?q=1\">foo<li href=\"/p?q=1\">foo bazfoo</li>x y</ul><p class=\"c\"><div>\n</div><hr />bar </p><div href=\"/p?q=1\"><div>\nx y</div>\n<br/><p class=\"c\">quxqux baz</p></div></p></ul><a href=\"/p?q=1\"><span href=\"/p?q=1\">qux</span><div><li href=\"/p?q=1\"><ul class=\"c\">bar x y baz</ul>\n</li>foo</div><hr /></a></span></ul><li href=\"/p?q=1\"><a> baz<li href=\"/p?q=1\"><span>foobar <ul><div class=\"c\"> bazx y baz</div>x y<br/><li href=\"/p?q=1\">x yx y</li></ul><li href=\"/p?q=1\"><ul>x y</ul><span class=\"c\">quxx y</span><a href=\"/p?q=1\">bar x y</a><br/></li></span><div href=\"/p?q=1\"><ul href=\"/p?q=1\"><br/><a href=\"/p?q=1\">foofoo\n</a><div>bar qux</div></ul><a href=\"/p?q=1\"><span class=\"c\">bar  bazfoo\n</span></a></div></li><div class=\"c\"><span href=\"/p?q=1\"><span>foo<li class=\"c\">x yquxquxx y</li></span>\n</span><span class=\"c\">foofoobar <span href=\"/p?q=1\">foo<span>foo bazfoo\n</span></span></span><ul><p href=\"/p?q=1\">foo<hr /><div href=\"/p?q=1\">x yx yqux</div></p></ul></div></a>foo</li><a>qux<li href=\"/p?q=1\">bar <span href=\"/p?q=1\"><p>\n\n</p></span><p class=\"c\">quxx y\n<span href=\"/p?q=1\"><hr /></span></p><span href=\"/p?q=1\">qux<div><li href=\"/p?q=1\"><ul href=\"/p?q=1\">bar quxfoo</ul><span href=\"/p?q=1\"> bazquxquxx y</span></li> baz</div>foo</span></li>\n</a><p><p class=\"c\"><hr /><li href=\"/p?q=1\"><li href=\"/p?q=1\"><li href=\"/p?q=1\"><p class=\"c\">\nquxfooqux</p>\n\n</li>x y</li><a href=\"/p?q=1\">qux<a class=\"c\"><div href=\"/p?q=1\">bar bar </div><p> bazx y</p><div href=\"/p?q=1\">\nfoo\n baz</div></a><li class=\"c\">foo<span class=\"c\">x y</span><p class=\"c\">x yquxbar foo</p></li><li href=\"/p?q=1\"><li class=\"c\"> bazfooqux</li><br/><div class=\"c\">qux</div></li></a><p class=\"c\">x y</p><p class=\"c\"><hr /><p href=\"/p?q=1\">\nbar <hr /><a class=\"c\">\nquxbar </a></p></p></li><li>qux<li class=\"c\"> baz<li><li href=\"/p?q=1\">qux</li>bar <span class=\"c\">qux</span><a href=\"/p?q=1\">foofoo</a></li><p href=\"/p?q=1\"><ul class=\"c\">\nbar  bazqux</ul></p>foo</li></li><p><p><p href=\"/p?q=1\"><hr /> baz<p> baz baz</p></p></p><li>foox y<hr /></li></p></p><ul href=\"/p?q=1\"><a href=\"/p?q=1\"><a>\nfoo<ul><ul class=\"c\">quxbar x yx y</ul></ul></a></a>x y<p href=\"/p?q=1\"><ul href=\"/p?q=1\"><ul href=\"/p?q=1\"><div>x yqux\nqux</div>foo<div> bazfoox ybar </div></ul><a><p href=\"/p?q=1\">\nbar foo\n</p><li class=\"c\">x y</li><div>qux bazbar \n</div><li>\nx yfoo</li></a></ul><div class=\"c\"><div class=\"c\"><a href=\"/p?q=1\">bar foox y</a><li>\n</li><ul href=\"/p?q=1\">bar x yfoo</ul><li class=\"c\">\n\n</li></div></div>\n</p><div href=\"/p?q=1\"><br/></div></ul></p><a class=\"c\">qux<p class=\"c\">x y<li><a class=\"c\"><a class=\"c\"><a>x y\n</a><p class=\"c\"> bazqux baz</p><a>bar bar  bazbar </a>qux</a><hr /> baz<ul href=\"/p?q=1\"><span href=\"/p?q=1\"> bazx y</span>\n</ul></a></li></p><li>quxx y<div> baz\n<hr />foo</div><li href=\"/p?q=1\"><div><hr />\n<ul class=\"c\"><span> baz</span>x y</ul><div href=\"/p?q=1\"><span class=\"c\">foo\n</span><div href=\"/p?q=1\">bar </div><ul class=\"c\">foox y</ul></div></div>bar <span href=\"/p?q=1\">bar <ul><li>x y\n</li>foofoo<li>quxfoo baz</li></ul></span></li></li></a>bar <a href=\"/p?q=1\"><div class=\"c\"><a href=\"/p?q=1\">bar <a class=\"c\">x ybar <ul><ul> bazfoox y</ul></ul><span href=\"/p?q=1\">\n<span> bazbar </span><a class=\"c\"> bazbar quxbar </a><p class=\"c\">bar x y</p></span></a><span class=\"c\"><span>qux<span>x ybar  baz</span><ul href=\"/p?q=1\">foofoo</ul><ul class=\"c\">bar \n bazfoo</ul></span><span><li href=\"/p?q=1\">bar bar \nqux</li><li>\nbar quxbar </li></span><span href=\"/p?q=1\"><p class=\"c\">\nbar </p> baz</span><hr /></span> baz</a><a href=\"/p?q=1\">qux<br/>\n<ul>x y baz</ul></a></div><span class=\"c\">\n<ul><ul><a href=\"/p?q=1\"><p href=\"/p?q=1\">bar \n\n\n</p>qux<div class=\"c\">bar </div> baz</a><p><li href=\"/p?q=1\"> baz</li>qux<div>\nbar  baz</div></p></ul><br/>\n<span><li>foofoo<br/></li><li><span href=\"/p?q=1\"> bazx yqux</span><a>bar bar x y</a>\nbar </li></span></ul>qux<div href=\"/p?q=1\">\n<ul href=\"/p?q=1\">foo<li><div href=\"/p?q=1\">foobar bar </div><ul>foox y</ul><p class=\"c\">bar x yx yqux</p></li><p><a class=\"c\">qux\n</a><a class=\"c\">foofooqux</a></p></ul></div></span>foo\n</a><span href=\"/p?q=1\"><ul class=\"c\"><hr />x y</ul></span>foo<a href=\"/p?q=1\">x y<br/>x yx y</a>\n<ul><a href=\"/p?q=1\"><ul href=\"/p?q=1\"><li href=\"/p?q=1\"><br/></li></ul></a><a class=\"c\"><ul href=\"/p?q=1\">x y<p href=\"/p?q=1\">foo<ul><div href=\"/p?q=1\">quxbar </div></ul></p><p class=\"c\"><ul href=\"/p?q=1\">qux</ul><li><p href=\"/p?q=1\">x y</p><a class=\"c\">foo</a>\n<li>bar </li></li>foo<li><ul href=\"/p?q=1\">foo\n</ul>x y</li></p><p href=\"/p?q=1\"> baz<span><span href=\"/p?q=1\">x y\n</span>foo<span class=\"c\">foobar </span>x y</span><p><p>foo</p>foo</p><ul><ul href=\"/p?q=1\">qux</ul></ul></p></ul>qux</a></ul><span href=\"/p?q=1\">qux</span> bazx y<div href=\"/p?q=1\"><span href=\"/p?q=1\"><li class=\"c\"><br/><li href=\"/p?q=1\"><div>bar \n</div></li>foo</li></span><p class=\"c\"><hr /><div class=\"c\">bar <li><a href=\"/p?q=1\"><ul class=\"c\">qux</ul>foo<li href=\"/p?q=1\">x y</li></a><li class=\"c\"><span class=\"c\"> bazx y</span><span>\n</span><div href=\"/p?q=1\">\nbar  baz</div></li><p class=\"c\"><a href=\"/p?q=1\"> bazfoo baz</a>qux<p href=\"/p?q=1\">\nfoox yfoo</p></p>\n</li><div class=\"c\"><span href=\"/p?q=1\">bar bar </span></div></div></p>bar </div>x y<p href=\"/p?q=1\"><ul href=\"/p?q=1\"><li href=\"/p?q=1\"><hr /><p>x y</p></li></ul></p><ul class=\"c\"><ul>\n</ul><span><ul href=\"/p?q=1\"> baz</ul><ul><span class=\"c\"><span class=\"c\"><a>qux</a><hr /><span>\n</span>bar </span></span>x y<ul class=\"c\"><hr />foo<br/></ul></ul> bazbar </span><ul><br/><div href=\"/p?q=1\">bar \n<hr /><ul class=\"c\">bar \n<ul href=\"/p?q=1\"><li class=\"c\">x yqux</li>qux</ul>\n</ul></div></ul><li href=\"/p?q=1\">x y<span class=\"c\"> baz<ul href=\"/p?q=1\"><hr /><a href=\"/p?q=1\">\n<div href=\"/p?q=1\">foo baz\nfoo</div></a><span href=\"/p?q=1\"><span class=\"c\">quxx y</span><ul>x y\n\nfoo</ul></span></ul>\n<p><a class=\"c\">bar <ul>\nbar \nbar </ul></a><span href=\"/p?q=1\"><ul class=\"c\">\nquxqux</ul>foo</span><ul href=\"/p?q=1\">x y<span href=\"/p?q=1\">bar </span></ul></p></span>qux<p href=\"/p?q=1\"><br/><p><a class=\"c\"><li class=\"c\">x y</li>x y<p href=\"/p?q=1\">x y bazx y\n</p><p class=\"c\"> bazbar \n baz</p></a></p><span><ul><ul class=\"c\">\nx yx yqux</ul></ul><li href=\"/p?q=1\"><a href=\"/p?q=1\">x y</a></li></span></p></li></ul>foo<span href=\"/p?q=1\">foofoo</span><a> baz<p href=\"/p?q=1\"><div href=\"/p?q=1\"><div class=\"c\"><div class=\"c\">foo<hr /><ul>foo\n bazx y</ul><a>qux bazbar qux</a></div><p><span>\n\nx y</span></p><ul><ul href=\"/p?q=1\">x yqux baz baz</ul>\n</ul></div> baz</div><li href=\"/p?q=1\"><ul href=\"/p?q=1\"><span class=\"c\"><a>bar </a>quxqux</span><ul><div>bar </div><hr /></ul>qux</ul><p href=\"/p?q=1\"><span href=\"/p?q=1\"><div class=\"c\">quxx y\n</div>x y<div>foo</div></span><div href=\"/p?q=1\"> baz<li>bar  bazbar x y</li></div>qux\n</p><a>foox y</a></li></p><span class=\"c\"> bazbar <div href=\"/p?q=1\">x y<ul href=\"/p?q=1\"><div><div href=\"/p?q=1\">x y</div><span href=\"/p?q=1\"> baz</span></div>qux</ul>x y</div></span><ul><hr /><li><ul href=\"/p?q=1\"><div class=\"c\"><hr /><li class=\"c\">quxquxfoo</li><p href=\"/p?q=1\">\nbar \n</p>qux</div><p><li class=\"c\">x yqux</li></p></ul></li><div class=\"c\">foobar <span class=\"c\"><ul href=\"/p?q=1\"><p>foo baz\n</p>bar <ul class=\"c\"> bazx y</ul>qux</ul><ul>bar <span href=\"/p?q=1\">quxbar bar  baz</span><a class=\"c\">\nqux</a></ul><p><hr /></p>x y</span></div><div>bar <ul class=\"c\"><a>bar </a></ul><p>qux</p>bar </div></ul></a> baz<span class=\"c\"> baz</span>x y\n<ul href=\"/p?q=1\"><div class=\"c\">\n</div><p>bar <p><a class=\"c\"><ul href=\"/p?q=1\">qux\n<li href=\"/p?q=1\">\n</li><div class=\"c\">qux baz bazx y</div></ul>bar <div href=\"/p?q=1\"><p> bazquxx y</p><ul href=\"/p?q=1\">bar foo</ul></div></a><ul class=\"c\"><hr />foo<hr /><span class=\"c\"><hr /><div>x y</div></span></ul></p><ul><div class=\"c\"><ul>x y</ul></div></ul>x y</p></ul>qux</body></html>"
+    ],
+    [
+     "div"
+    ],
+    [
+     "span"
+    ],
+    [
+     "a"
+    ],
+    [
+     "br"
+    ],
+    [
+     "body"
+    ],
+    []
+   ],
+   "expected": [
+    null,
+    [
+     "x y\n bazqux bazquxbar \nbar foo baz bazquxquxqux bazbar bar \nbar foo bazbar \nbar foo\nx yqux\n\n bazquxbar foofoox y baz bazbar quxbar bar fooqux",
+     "\n bazqux",
+     " bazbar bar \nbar foo bazbar \nbar foo",
+     " bazbar bar \nbar ",
+     "bar ",
+     "foo bazbar \nbar foo",
+     "\nbar ",
+     "foo",
+     "quxbar foofoox y",
+     "quxbar ",
+     "x y baz bazbar  baz",
+     " baz\n",
+     "\nqux\n baz",
+     "bar \nx yx yfoo bazqux",
+     "\n",
+     "x yfoo",
+     "x y\nquxbar quxbar foo\nfoobar x y baz",
+     "x y\nquxbar quxbar foo",
+     "quxbar foo",
+     "\nfoobar ",
+     "\nfoo",
+     "x y",
+     "qux baz\nquxfoo",
+     " baz",
+     "x y",
+     "foo",
+     "\n\n bazbar \nfooqux bazbar  bazx y bazqux\nquxquxqux bazqux",
+     "\nqux",
+     " bazqux bazquxquxfoo",
+     " bazqux",
+     "foo baz",
+     "qux\nx y baz",
+     "x yqux bazfooquxfoox y\n",
+     " bazfooquxfoox y\n",
+     "x y",
+     "x yx y\n\nbar  baz",
+     "x y\n\n",
+     " bazx y\n",
+     " bazx y\n",
+     "qux",
+     " baz\nquxx yx y\n bazfooquxfoox y\n",
+     "\nfoofooqux bazx yx yqux\nbar foo bazbar foox yqux bazx yx yqux baz",
+     "bar ",
+     "quxqux bazbar foo\nbar ",
+     "bar ",
+     "bar ",
+     "bar ",
+     "bar ",
+     "x y\nx ybar  bazfoox yx y",
+     "bar foo\nfoo baz",
+     " baz",
+     "bar foofoo",
+     "x ybar foo",
+     "quxfoofoox y",
+     "foofoo\n\n",
+     "foo",
+     "foo",
+     "quxx yfoobar foox y\nfoobar x y bazx y\n baz baz\n",
+     "x y\n\nquxfoo\nquxqux",
+     "\nquxfoo",
+     "\n",
+     "\nbar x y baz\n",
+     "qux",
+     "fooquxbar \nx yquxbar qux baz baz",
+     "qux",
+     "bar \nx yquxbar qux baz baz",
+     "x yquxbar qux",
+     "\nx yquxfoo\nx y bazbar foofoobar bar x y",
+     " baz",
+     "\nx y bazqux",
+     "bar qux\nbar x y",
+     "bar x y",
+     "bar x y",
+     "foo bazbar x yfooquxbar quxx y bazx yx y baz bazfoo bazbar \nx y baz\nx ybar quxbar x y\n\nx ybar \n bazqux bazqux baz",
+     "fooquxbar ",
+     "x yx y baz",
+     "\nx y baz\n",
+     "\n\nx ybar \n bazqux baz",
+     "qux",
+     "qux",
+     " baz",
+     " baz",
+     "bar x yx y baz",
+     "quxfoo",
+     "quxquxquxquxqux\n",
+     "qux baz\nquxquxfoofoox y",
+     "qux",
+     " bazbar \n baz bazquxx yquxfooquxbar ",
+     "x y",
+     "foo\nquxx y bazqux bazx yx y bazx y\n\nqux bazquxfoo\nx yquxbar foo baz\nx yfoo\nfoobar \nqux\nqux",
+     "x y bazx y\n\nqux",
+     "",
+     "foo",
+     "foo\n bazfoofoox yqux",
+     "qux",
+     "\n",
+     "\nx y\nquxqux baz",
+     "\nx y",
+     "bar x y baz\nfoo",
+     " bazx y baz",
+     "foofoo\nbar quxbar  bazfoo\n",
+     "bar qux",
+     "foox yquxquxx y\nfoofoobar foofoo bazfoo\nfoox yx yqux",
+     "x yx yqux",
+     "bar quxfoo bazquxquxx y baz",
+     "bar bar ",
+     "\nfoo\n baz",
+     "qux",
+     "x yqux\nqux",
+     " bazfoox ybar ",
+     "qux bazbar \n",
+     "bar foox y\nbar x yfoo\n\n",
+     "bar foox y\nbar x yfoo\n\n",
+     "",
+     " baz\nfoo",
+     "\n bazx yfoo\nbar foox y",
+     "foo\nbar foox y",
+     "bar ",
+     "bar x ybar  bazfoox y\n bazbar  bazbar quxbar bar x yquxx ybar  bazfoofoobar \n bazfoobar bar \nqux\nbar quxbar \nbar  baz bazqux\nx y baz",
+     "bar ",
+     "\nbar  baz",
+     "\nfoofoobar bar foox ybar x yx yquxqux\nfoofooqux",
+     "foobar bar ",
+     "quxbar ",
+     "bar \nfoobar quxfoox y bazx y\n\nbar  baz bazfoo bazqux\nfoox yfoo\nbar bar bar ",
+     "bar \n",
+     "bar quxfoox y bazx y\n\nbar  baz bazfoo bazqux\nfoox yfoo\nbar bar ",
+     "\nbar  baz",
+     "bar bar ",
+     "bar \nbar \nx yquxqux\n",
+     "foo baz\nfoo",
+     "foofoo\n bazx yqux bazbar qux\n\nx yx yqux baz baz\n baz",
+     "foofoo\n bazx yqux bazbar qux\n\nx yx yqux baz baz\n",
+     "foofoo\n bazx yqux bazbar qux",
+     "bar ",
+     "quxx y\n",
+     "foo",
+     " bazbar  bazbar x y",
+     "x yx y bazquxx y",
+     "x y baz",
+     "x y",
+     "quxquxfoo\nbar \nqux",
+     "foobar foo baz\nbar  bazx yquxbar quxbar bar  baz\nquxx y",
+     "bar bar quxbar ",
+     "\n",
+     "qux baz bazx y",
+     " bazquxx ybar foo",
+     "x y",
+     "x y"
+    ],
+    [
+     "",
+     "foo bazbar ",
+     "\nx yqux\n\n baz",
+     " baz",
+     "bar fooqux",
+     "quxbar x y baz bazbar  bazqux bazqux baz\n\nbar  baz\n\nqux\n baz",
+     "\n",
+     " baz baz",
+     "\nbar \nx yx yfoo bazqux",
+     "\n",
+     "\nfoo",
+     " bazx ybar ",
+     "quxx yfoo bazx yx y bazfoobar \nbar quxx y",
+     "x yx y bazfoo",
+     "fooquxx yfoo",
+     "qux baz\n",
+     "foo baz\nfooquxbar  bazfoo\n\nfoofoo baz baz bazx yx yfoo",
+     " bazfoo",
+     "\n\nfoofoo",
+     "x y",
+     "\n\n bazbar \n",
+     "quxqux",
+     "qux\nbar ",
+     "bar ",
+     "x y",
+     " bazx yx ybar x y bazqux\nx y baz",
+     "bar ",
+     "qux bazfooquxfoox y\n",
+     "\n baz bazx yqux\n",
+     "foofooquxfoofoo baz\n bazquxx y",
+     "\n bazquxx y",
+     "\nfoo",
+     " baz\nqux",
+     "x y",
+     "\n bazfooquxfoox y\n",
+     "foox y\n",
+     "foox y baz",
+     " baz",
+     "quxbar quxx y",
+     "quxquxfoofoo\n\nbar foobar bar x y bazfoofooqux",
+     "quxquxfoofoo\n\nbar foobar bar ",
+     "quxqux",
+     " bazfoofoo",
+     "bar foobar bar ",
+     " bazfoo",
+     "qux",
+     "x yx yquxx y bazfooqux\nbar x y baz\n bazx y bazfoofooquxfoofoo\nbar x yquxx yqux\n\nquxfoo bazqux bazfoo",
+     " bazfooqux",
+     "x y baz\n",
+     " bazx y bazfoo",
+     "\n\nquxfoo",
+     "bar ",
+     " baz\nx yquxfoo\nx y bazbar foofoobar bar x y bazquxbar ",
+     " baz\nx yquxfoo\nx y bazbar foofoobar bar x y bazqux",
+     "\nx y baz",
+     "foobar bar ",
+     "bar ",
+     "x yquxx yquxfoobar foo\nfoo\n",
+     "x yquxx yquxfoo",
+     "bar foo\nfoo\n",
+     "bar foofoox y\nx y bazqux",
+     "\nx y bazqux",
+     "x ybar x yfoofoobar x y",
+     "bar x y",
+     " bazbar x yfooquxbar quxx y bazx yx y baz bazfoo bazbar ",
+     "bar x yfooquxbar qux",
+     "x y baz",
+     "\nx y baz\nx ybar quxbar x y\n\nx ybar \n bazqux bazqux baz",
+     "\n",
+     "bar x yx y baz\n",
+     "bar x yx y baz",
+     "qux baz\nqux",
+     " baz",
+     "\n baz bazquxx yquxfoo",
+     " bazqux bazx y",
+     "",
+     "\nx y",
+     "quxbar foo",
+     "\nfoobar quxfoo\nquxbar qux bazfoofoo\n bazfoofoox yquxx yfoofoofoo bazfoox y\nbar \nx y\nquxqux bazquxbar x y baz\nfoo",
+     "bar quxfoo\nquxbar qux",
+     "foo\n bazfoofoox yquxx y",
+     "qux",
+     "foobar  bazx y bazx yx yx yx yquxx ybar x y",
+     "quxx y",
+     "bar  bazfoo\n",
+     "foox yquxquxx y\n",
+     "foox yquxquxx y",
+     "foofoobar foofoo bazfoo\n",
+     "foofoo bazfoo\n",
+     "foo bazfoo\n",
+     "\n\n",
+     "",
+     "quxbar quxfoo bazquxquxx y bazfoo",
+     " bazquxquxx y",
+     "x y",
+     "qux",
+     " bazx y",
+     " baz",
+     "foo\n",
+     "bar x y\nfoofooquxfoo baz",
+     "\n bazbar  bazbar quxbar bar x y",
+     " bazbar ",
+     "quxx ybar  bazfoofoobar \n bazfoobar bar \nqux\nbar quxbar \nbar  baz",
+     "quxx ybar  bazfoofoobar \n bazfoo",
+     "x ybar  baz",
+     "bar bar \nqux\nbar quxbar ",
+     "\nbar  baz",
+     "\nbar \n\n\nquxbar  baz bazqux\nbar  baz\nfoofoo bazx yquxbar bar x y\nbar qux\nfoofoobar bar foox ybar x yx yquxqux\nfoofooqux",
+     "foofoo bazx yquxbar bar x y\nbar ",
+     " bazx yqux",
+     "x y",
+     "x y\nfoofoobar x y",
+     "x y\n",
+     "foobar ",
+     "qux",
+     "bar \nfoo",
+     " bazx y",
+     "\n",
+     "bar bar ",
+     " bazqux\nbar x yfoo bazbar ",
+     "qux\nbar ",
+     "qux\nbar ",
+     "\n",
+     " baz\nfoo baz\nfooquxx yx y\n\nfoo\nbar \nbar \nbar \nquxquxfoox ybar ",
+     "quxx yx y\n\nfoo",
+     "quxx y",
+     "\nquxquxfoo",
+     "bar ",
+     "\nx yx yquxx y",
+     "foofoo",
+     "\n\nx y",
+     "bar quxqux",
+     "quxx y\nx yfoo",
+     " bazbar x yx y bazquxx y",
+     " baz",
+     "foo baz\nbar  bazx yquxbar quxbar bar  baz\nquxx y",
+     "quxbar bar  baz",
+     " baz",
+     "x y"
+    ],
+    [
+     "",
+     " bazquxbar \nbar foo baz bazquxquxqux bazbar bar \nbar foo bazbar \nbar foo\nx yqux\n\n baz",
+     " bazqux",
+     "bar \nbar foo baz bazquxqux",
+     " bazbar bar \n",
+     "\nx yqux\n\n baz",
+     "foo",
+     "bar x y baz bazbar  bazqux bazqux baz\n\nbar  baz\n\nqux\n baz",
+     "qux baz\n\nbar ",
+     "x y\nquxbar quxbar foo\nfoobar x y baz",
+     "x yx yx y baz\nbar quxbar qux bazx ybar  bazx ybar \n bazfooqux\nbar fooquxx yfoo bazx yx y bazfoobar \nbar quxx y\nbar quxx y baz bazfoofooquxx yfooqux baz\nquxfoobar bar bar bar x y bazqux",
+     "x yx yx y baz\nbar quxbar qux bazx ybar  bazx ybar \n bazfooqux\nbar fooquxx yfoo bazx yx y bazfoobar \nbar quxx y\nbar quxx y baz bazfoofooquxx yfooqux baz\nquxfoobar bar bar ",
+     "\n",
+     "fooqux",
+     "\nbar foo",
+     "quxx yfoo bazx yx y bazfoobar \nbar quxx y\nbar quxx y baz bazfoofooquxx yfoo",
+     "\nbar quxx y baz bazfoo",
+     "x y baz bazfoo",
+     "bar ",
+     "bar x y baz",
+     "bar x y baz",
+     " baz",
+     "foo baz\nfooquxbar  bazfoo\n\nfoofoo baz baz",
+     "\n\n bazbar \nfooqux bazbar  bazx y bazqux\nquxquxqux bazqux",
+     "\n bazbar \n",
+     " baz",
+     "foobar fooqux\nbar bar bar bar  bazqux bazquxquxfoo",
+     "bar fooqux\nbar bar bar ",
+     "bar bar ",
+     "bar ",
+     "bar x y baz",
+     " baz baz",
+     "quxbar  bazqux\n bazx y",
+     " bazx y",
+     "foofooquxfoofoo baz\n bazquxx ybar ",
+     " baz\nqux",
+     "x y",
+     "\nfoofoo",
+     " bazx yx yqux",
+     "foo",
+     "x yx y",
+     "quxqux bazbar foo\nbar ",
+     "quxqux bazbar foo\n",
+     "quxqux bazbar foo",
+     " bazbar bar ",
+     " baz",
+     " baz",
+     " bazfoo\n baz",
+     " baz\nquxbar quxx ybar foofooquxx ybar fooquxfoofoox y",
+     "quxbar quxx ybar foofooqux",
+     "x ybar fooquxfoofoox y",
+     " bazfoofooqux",
+     " bazquxbar foobar bar  bazfoox y\n baz",
+     "foox y\nfoobar x y bazx y",
+     "\n",
+     "x ybar \nquxfoo",
+     "\n\nbar ",
+     "x yquxx y",
+     "qux",
+     "foofoo\n",
+     "",
+     "\n",
+     "x yquxx yquxfoobar foo\nfoo\n\nquxbar quxx ybar x y baz bazbar qux",
+     "x yquxx y",
+     "quxx ybar x y",
+     " baz",
+     "x y baz",
+     "bar qux\n",
+     "x ybar x yfoofoobar x yqux",
+     "foo bazbar x yfooquxbar quxx y bazx yx y baz bazfoo bazbar \nx y baz\nx ybar quxbar x y\n\nx ybar \n bazqux bazqux bazx yx ybar x yx y baz\nquxquxfoox yfooquxquxquxquxqux\n",
+     "qux",
+     " bazfoo bazbar ",
+     "x y baz",
+     "qux",
+     "qux baz\nquxquxfoofoox ybar foobar \nfoox yx yfoofoo",
+     "foox y",
+     "x yx yfoo",
+     "\n baz",
+     "\n baz",
+     "x y",
+     "foo",
+     "x y bazx y",
+     "\nx y",
+     "x yfoo\nfoobar \nqux\n",
+     "qux\n",
+     "\nfoo",
+     "quxbar x y baz\nfoo",
+     " bazfoobar  bazx y bazx yx yx yx yquxx ybar x yfoofoo\nbar quxbar  bazfoo\nfoox yquxquxx y\nfoofoobar foofoo bazfoo\nfoox yx yqux",
+     "bar x y",
+     "foofoo\n",
+     "bar  bazfoo\n",
+     "quxbar \n\nquxx y\nquxbar quxfoo bazquxquxx y bazfoo\n",
+     "quxbar bar  bazx y\nfoo\n bazfoox yx yquxbar foo bazfooquxqux",
+     "bar bar  bazx y\nfoo\n baz",
+     "\nquxbar ",
+     "foofoo",
+     "\nfooquxbar x yx y",
+     "\nfooquxbar x yx y",
+     "\nbar foo\nx yqux bazbar \n\nx yfoo",
+     "bar foox y",
+     "quxx yx y\n bazqux bazbar bar  bazbar qux baz bazx y\nquxx y baz\nfoo\n bazx yfoo\nbar foox ybar bar x y\nfoofooquxfoo baz",
+     "x y\n bazqux bazbar bar  bazbar qux baz bazx y\n",
+     "x y\n bazqux bazbar bar  bazbar qux",
+     "x y\n",
+     "bar bar  bazbar ",
+     "bar x ybar  bazfoox y\n bazbar  bazbar quxbar bar x yquxx ybar  bazfoofoobar \n bazfoobar bar \nqux\nbar quxbar \nbar  baz bazqux\nx y baz\nbar \n\n\nquxbar  baz bazqux\nbar  baz\nfoofoo bazx yquxbar bar x y\nbar qux\nfoofoobar bar foox ybar x yx yquxqux\nfoofooquxfoo\n",
+     "bar x ybar  bazfoox y\n bazbar  bazbar quxbar bar x yquxx ybar  bazfoofoobar \n bazfoobar bar \nqux\nbar quxbar \nbar  baz baz",
+     "x ybar  bazfoox y\n bazbar  bazbar quxbar bar x y",
+     " bazbar quxbar ",
+     "qux\nx y baz",
+     "bar \n\n\nquxbar  baz",
+     "bar bar x y",
+     "qux\n",
+     "foofooqux",
+     "x yx yx y",
+     "",
+     "x yfooquxbar quxx yfoo\nbar foofoo\nx y bazx y\nfoofoobar x yfoofooquxqux",
+     "foo",
+     "quxfoox y",
+     " bazfoo baz",
+     "qux",
+     "\nfoo baz\nfoo",
+     "bar \nbar \nbar ",
+     "x yx yx y bazx y\n bazbar \n baz",
+     "x y",
+     " bazfoofoo\n bazx yqux bazbar qux\n\nx yx yqux baz baz\n bazbar quxquxbar quxquxx y\nx yfoo bazbar  bazbar x yqux\nfoox y bazbar x yx y bazquxx yquxquxfoo\nbar \nquxx yquxfoobar foo baz\nbar  bazx yquxbar quxbar bar  baz\nquxx ybar bar quxbar ",
+     "qux bazbar qux",
+     "bar ",
+     "foox y",
+     "\nqux",
+     "bar ",
+     "qux\n\nqux baz bazx ybar  bazquxx ybar foo"
+    ],
+    [
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     ""
+    ],
+    [
+     "quxx y\n bazqux bazquxbar \nbar foo baz bazquxquxqux bazbar bar \nbar foo bazbar \nbar foo\nx yqux\n\n bazquxbar foofoox y baz bazbar quxbar bar fooquxquxbar x y baz bazbar  bazqux bazqux baz\n\nbar  baz\n\nqux\n baz baz baz baz\nbar \nx yx yfoo bazquxx y bazx y\nquxbar quxbar foo\nfoobar x y bazx yx yx y baz\nbar quxbar qux bazx ybar  bazx ybar \n bazfooqux\nbar fooquxx yfoo bazx yx y bazfoobar \nbar quxx y\nbar quxx y baz bazfoofooquxx yfooqux baz\nquxfoobar bar bar bar x y bazquxbar x yfoo baz\nfooquxbar  bazfoo\n\nfoofoo baz baz bazx yx yfoo\nbar \n\n bazbar \nfooqux bazbar  bazx y bazqux\nquxquxqux bazqux bazfoobar fooqux\nbar bar bar bar  bazqux bazquxquxfoobar x yfoo bazbar bar quxx y\n bazx yx ybar x y bazqux\nx y bazquxbar \nx yquxx ybar quxx y baz bazfoo bazx yqux bazfooquxfoox y\n\n baz bazx yqux\nquxbar  bazqux\n bazx yx yx y\n\nbar  bazx yfoofooquxfoofoo baz\n bazquxx ybar qux bazx y\n\nx yqux\nfoo baz\nquxx yx y\n bazfooquxfoox y\nqux\nfoofooqux bazx yx yqux\nbar foo bazbar foox yqux bazx yx yqux baz\n\nquxqux bazbar foo\nbar  bazbar bar foox y bazfoobar x yx y\nx ybar  bazfoox yx ybar foo\nfoo baz bazfoo\n baz bazbar bar quxx yx yquxbar  bazquxx yquxfoo baz\nquxbar quxx ybar foofooquxx ybar fooquxfoofoox yquxquxfoofoo\n\nbar foobar bar x y bazfoofooquxfoox y bazquxbar foobar bar  bazfoox y\n baz\n\nfoobar quxx yfoobar foox y\nfoobar x y bazx y\n baz baz\nquxquxx ybar \nquxfoox yx y\n\nquxfoo\nquxqux baz\nquxquxbar  baz\nbar \n\nbar x yx yquxx y bazfooqux\nbar x y baz\n bazx y bazfoofooquxfoofoo\nbar x yquxx yqux\n\nquxfoo bazqux bazfooquxbar fooquxbar \nx yquxbar qux baz baz baz\nx yquxfoo\nx y bazbar foofoobar bar x y bazquxbar bar bar  bazquxx yquxx yquxfoobar foo\nfoo\n\nquxbar quxx ybar x y baz bazbar qux baz\nbar foofoox y\nx y bazquxquxfooquxbar qux\nbar x y\nbar x y\nx ybar x yfoofoobar x yquxfoo bazbar x yfooquxbar quxx y bazx yx y baz bazfoo bazbar \nx y baz\nx ybar quxbar x y\n\nx ybar \n bazqux bazqux bazx yx ybar x yx y baz\nquxquxfoox yfooquxquxquxquxqux\nquxquxquxqux baz\nquxquxfoofoox ybar foobar \nfoox yx yfoofoo bazbar \n baz bazquxx yquxfooquxbar bar quxx yfoo\nquxx y bazqux bazx yx y bazx y\n\nqux bazquxfoo\nx yquxbar foo baz\nx yfoo\nfoobar \nqux\nqux\nfoobar quxfoo\nquxbar qux bazfoofoo\n bazfoofoox yquxx yfoofoofoo bazfoox y\nbar \nx y\nquxqux bazquxbar x y baz\nfoo bazfoobar  bazx y bazx yx yx yx yquxx ybar x yfoofoo\nbar quxbar  bazfoo\nfoox yquxquxx y\nfoofoobar foofoo bazfoo\nfoox yx yquxfooquxbar \n\nquxx y\nquxbar quxfoo bazquxquxx y bazfoo\n\nquxfooqux\n\nx yquxbar bar  bazx y\nfoo\n bazfoox yx yquxbar foo bazfooquxquxx y\nbar \nquxbar qux bazquxbar quxfoofoo\nbar  bazquxfoo baz baz bazfoox y\nfooquxbar x yx yx yx yqux\nquxfoo bazfoox ybar \nbar foo\nx yqux bazbar \n\nx yfoobar foox y\nbar x yfoo\n\n\nquxx yx y\n bazqux bazbar bar  bazbar qux baz bazx y\nquxx y baz\nfoo\n bazx yfoo\nbar foox ybar bar x y\nfoofooquxfoo bazbar bar x ybar  bazfoox y\n bazbar  bazbar quxbar bar x yquxx ybar  bazfoofoobar \n bazfoobar bar \nqux\nbar quxbar \nbar  baz bazqux\nx y baz\nbar \n\n\nquxbar  baz bazqux\nbar  baz\nfoofoo bazx yquxbar bar x y\nbar qux\nfoofoobar bar foox ybar x yx yquxqux\nfoofooquxfoo\nx yfoox yx yx y\nx yfooquxbar quxx yfoo\nbar foofoo\nx y bazx y\nfoofoobar x yfoofooquxquxqux bazx ybar \nfoobar quxfoox y bazx y\n\nbar  baz bazfoo bazqux\nfoox yfoo\nbar bar bar x yx y\n bazqux\nbar x yfoo bazbar bar \nbar \nx yquxqux\nx y baz\nfoo baz\nfooquxx yx y\n\nfoo\nbar \nbar \nbar \nquxquxfoox ybar quxx yx yx y bazx y\n bazbar \n baz\nx yx yquxx yfoofoofoo bazfoofoo\n bazx yqux bazbar qux\n\nx yx yqux baz baz\n bazbar quxquxbar quxquxx y\nx yfoo bazbar  bazbar x yqux\nfoox y bazbar x yx y bazquxx yquxquxfoo\nbar \nquxx yquxfoobar foo baz\nbar  bazx yquxbar quxbar bar  baz\nquxx ybar bar quxbar  baz bazx y\n\nbar qux\n\nqux baz bazx ybar  bazquxx ybar foofoox yx yx yqux"
+    ],
+    "quxx y\n bazqux bazquxbar \nbar foo baz bazquxquxqux bazbar bar \nbar foo bazbar \nbar foo\nx yqux\n\n bazquxbar foofoox y baz bazbar quxbar bar fooquxquxbar x y baz bazbar  bazqux bazqux baz\n\nbar  baz\n\nqux\n baz baz baz baz\nbar \nx yx yfoo bazquxx y bazx y\nquxbar quxbar foo\nfoobar x y bazx yx yx y baz\nbar quxbar qux bazx ybar  bazx ybar \n bazfooqux\nbar fooquxx yfoo bazx yx y bazfoobar \nbar quxx y\nbar quxx y baz bazfoofooquxx yfooqux baz\nquxfoobar bar bar bar x y bazquxbar x yfoo baz\nfooquxbar  bazfoo\n\nfoofoo baz baz bazx yx yfoo\nbar \n\n bazbar \nfooqux bazbar  bazx y bazqux\nquxquxqux bazqux bazfoobar fooqux\nbar bar bar bar  bazqux bazquxquxfoobar x yfoo bazbar bar quxx y\n bazx yx ybar x y bazqux\nx y bazquxbar \nx yquxx ybar quxx y baz bazfoo bazx yqux bazfooquxfoox y\n\n baz bazx yqux\nquxbar  bazqux\n bazx yx yx y\n\nbar  bazx yfoofooquxfoofoo baz\n bazquxx ybar qux bazx y\n\nx yqux\nfoo baz\nquxx yx y\n bazfooquxfoox y\nqux\nfoofooqux bazx yx yqux\nbar foo bazbar foox yqux bazx yx yqux baz\n\nquxqux bazbar foo\nbar  bazbar bar foox y bazfoobar x yx y\nx ybar  bazfoox yx ybar foo\nfoo baz bazfoo\n baz bazbar bar quxx yx yquxbar  bazquxx yquxfoo baz\nquxbar quxx ybar foofooquxx ybar fooquxfoofoox yquxquxfoofoo\n\nbar foobar bar x y bazfoofooquxfoox y bazquxbar foobar bar  bazfoox y\n baz\n\nfoobar quxx yfoobar foox y\nfoobar x y bazx y\n baz baz\nquxquxx ybar \nquxfoox yx y\n\nquxfoo\nquxqux baz\nquxquxbar  baz\nbar \n\nbar x yx yquxx y bazfooqux\nbar x y baz\n bazx y bazfoofooquxfoofoo\nbar x yquxx yqux\n\nquxfoo bazqux bazfooquxbar fooquxbar \nx yquxbar qux baz baz baz\nx yquxfoo\nx y bazbar foofoobar bar x y bazquxbar bar bar  bazquxx yquxx yquxfoobar foo\nfoo\n\nquxbar quxx ybar x y baz bazbar qux baz\nbar foofoox y\nx y bazquxquxfooquxbar qux\nbar x y\nbar x y\nx ybar x yfoofoobar x yquxfoo bazbar x yfooquxbar quxx y bazx yx y baz bazfoo bazbar \nx y baz\nx ybar quxbar x y\n\nx ybar \n bazqux bazqux bazx yx ybar x yx y baz\nquxquxfoox yfooquxquxquxquxqux\nquxquxquxqux baz\nquxquxfoofoox ybar foobar \nfoox yx yfoofoo bazbar \n baz bazquxx yquxfooquxbar bar quxx yfoo\nquxx y bazqux bazx yx y bazx y\n\nqux bazquxfoo\nx yquxbar foo baz\nx yfoo\nfoobar \nqux\nqux\nfoobar quxfoo\nquxbar qux bazfoofoo\n bazfoofoox yquxx yfoofoofoo bazfoox y\nbar \nx y\nquxqux bazquxbar x y baz\nfoo bazfoobar  bazx y bazx yx yx yx yquxx ybar x yfoofoo\nbar quxbar  bazfoo\nfoox yquxquxx y\nfoofoobar foofoo bazfoo\nfoox yx yquxfooquxbar \n\nquxx y\nquxbar quxfoo bazquxquxx y bazfoo\n\nquxfooqux\n\nx yquxbar bar  bazx y\nfoo\n bazfoox yx yquxbar foo bazfooquxquxx y\nbar \nquxbar qux bazquxbar quxfoofoo\nbar  bazquxfoo baz baz bazfoox y\nfooquxbar x yx yx yx yqux\nquxfoo bazfoox ybar \nbar foo\nx yqux bazbar \n\nx yfoobar foox y\nbar x yfoo\n\n\nquxx yx y\n bazqux bazbar bar  bazbar qux baz bazx y\nquxx y baz\nfoo\n bazx yfoo\nbar foox ybar bar x y\nfoofooquxfoo bazbar bar x ybar  bazfoox y\n bazbar  bazbar quxbar bar x yquxx ybar  bazfoofoobar \n bazfoobar bar \nqux\nbar quxbar \nbar  baz bazqux\nx y baz\nbar \n\n\nquxbar  baz bazqux\nbar  baz\nfoofoo bazx yquxbar bar x y\nbar qux\nfoofoobar bar foox ybar x yx yquxqux\nfoofooquxfoo\nx yfoox yx yx y\nx yfooquxbar quxx yfoo\nbar foofoo\nx y bazx y\nfoofoobar x yfoofooquxquxqux bazx ybar \nfoobar quxfoox y bazx y\n\nbar  baz bazfoo bazqux\nfoox yfoo\nbar bar bar x yx y\n bazqux\nbar x yfoo bazbar bar \nbar \nx yquxqux\nx y baz\nfoo baz\nfooquxx yx y\n\nfoo\nbar \nbar \nbar \nquxquxfoox ybar quxx yx yx y bazx y\n bazbar \n baz\nx yx yquxx yfoofoofoo bazfoofoo\n bazx yqux bazbar qux\n\nx yx yqux baz baz\n bazbar quxquxbar quxquxx y\nx yfoo bazbar  bazbar x yqux\nfoox y bazbar x yx y bazquxx yquxquxfoo\nbar \nquxx yquxfoobar foo baz\nbar  bazx yquxbar quxbar bar  baz\nquxx ybar bar quxbar  baz bazx y\n\nbar qux\n\nqux baz bazx ybar  bazquxx ybar foofoox yx yx yqux"
+   ],
+   "hidden": true
+  }
+ ]
+}

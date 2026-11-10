@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public List<List<Object>> groupFailures(String[] messages) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "groupFailures",
+  "notes": "Each inner list is [signature, count]: a String and an Integer, e.g. Arrays.asList(sig, n)."
+}

@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public Map<String, Object> summarizeCsv(String text) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "summarizeCsv",
+  "notes": "Java has no csv module: parse each line character by character (a quote toggles quoted mode, \"\" inside quotes is one quote). Each suite maps to a Map with Integer/Long total and failed and a Double avg (Math.round(mean * 10) / 10.0 is fine, as the tests avoid .x5 ties); slowest is null when there are no rows."
+}

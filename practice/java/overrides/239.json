@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public boolean firstPlayerWins(String[] colors) {\n        \n        return false;\n    }\n}\n",
+  "className": "Solution",
+  "method": "firstPlayerWins",
+  "notes": "Colours are strings and may be longer than one character (e.g. \"red\")."
+}

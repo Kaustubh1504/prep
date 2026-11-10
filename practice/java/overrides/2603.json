@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    // Keys: \"per_label\" -> Map<String, List<Double>> ({precision, recall}), \"accuracy\" -> Double,\n    // \"blocking_false_positives\" -> Integer.\n    public Map<String, Object> evaluateTriage(String[] actual, String[] predicted) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "evaluateTriage",
+  "notes": "Return a Map with \"per_label\" (a Map<String, List<Double>> of {precision, recall}), \"accuracy\" (a Double) and \"blocking_false_positives\" (an Integer). Round with Math.round(x * 1000) / 1000.0; no test value sits on a rounding tie."
+}

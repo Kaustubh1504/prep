@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public TreeNode removeLeafNodes(TreeNode root, int target) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "removeLeafNodes",
+  "notes": "The tree arrives as a TreeNode built from the level-order list; return the new root (null if every node is deleted)."
+}

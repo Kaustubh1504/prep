@@ -1,0 +1,589 @@
+[
+  {
+    "id": "py-01",
+    "area": "Python language",
+    "topic": "list internals",
+    "question": "How is a Python `list` implemented under the hood? Why is `append` fast but `insert(0, x)` slow?",
+    "answer": "- In CPython a list is a **dynamic array**: one contiguous C array of pointers (`PyObject*`) to the elements, plus a length and an allocated capacity.\n- **Indexing is O(1)**: pointer arithmetic into the array. Because it stores pointers, a list can hold mixed types.\n- When the array is full, `append` reallocates with **over-allocation** (about 1/8 extra plus a small constant). Measured on 3.9 and 3.12, capacity grows 0 -> 4 -> 8 -> 16 -> 24 -> 32 -> 40 -> 52 -> 64 -> 76 -> 92. The occasional O(n) copy is spread over many cheap appends, so `append` is **amortised O(1)**.\n- `insert(0, x)` and `pop(0)` must shift every pointer by one slot: **O(n)**. `pop()` from the end is O(1).\n- `x in lst` is a linear scan: O(n).\n- Need a FIFO queue? Use `collections.deque`, which has O(1) `appendleft`/`popleft`.",
+    "followups": [
+      "Explain the amortised O(1) argument for append.",
+      "Why does `sys.getsizeof(lst)` not include the size of the elements?",
+      "When would you use `array.array` or `bytearray` instead of a list?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-02",
+    "area": "Python language",
+    "topic": "dict/set internals",
+    "question": "How does a Python `dict` work internally? What happens on a hash collision, and why do dicts keep insertion order?",
+    "answer": "- It is a **hash table using open addressing** (no per-bucket linked lists). `hash(key)` picks a starting slot. On a collision CPython **probes** other slots using a pseudo-random recurrence that gradually mixes in the higher bits of the hash (the `perturb` trick).\n- A lookup compares the stored hash first, then identity (`is`), and only then `==`. Equal hashes alone are not enough.\n- Since 3.6 it is a **compact dict**: a small sparse *indices* table points into a dense *entries* array of `(hash, key, value)` kept in insertion order. This saves memory, and it is why **insertion order is preserved**. The language guarantees that order since 3.7.\n- The table **resizes when about 2/3 full** to keep probe sequences short. Deleted slots get a \"dummy\" (tombstone) marker so later probes don't stop early.\n- get/set/delete/`in` are **O(1) on average** and O(n) in the worst case, when many keys collide.\n- `set` uses the same open-addressing idea but stores only keys and does **not** guarantee order. String hashes are randomised per process, so set order can differ between runs.",
+    "followups": [
+      "Why must dict keys be hashable and effectively immutable?",
+      "What happens if you add a key to a dict while iterating over it? (`RuntimeError: dictionary changed size during iteration`.) How do you delete safely? (Iterate over `list(d)`.)",
+      "If you delete key 'a' and re-insert it, where does it appear in iteration order? (At the end.)"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "py-03",
+    "area": "Python language",
+    "topic": "hashability",
+    "question": "What makes an object usable as a dict key or set member? Is a tuple always hashable? What does this print?\n```python\nclass Point:\n    def __init__(self, x): self.x = x\n    def __eq__(self, other): return self.x == other.x\n\nprint(Point.__hash__)\n```",
+    "answer": "Prints `None`.\n- A key needs a `__hash__` that **never changes during the object's lifetime** and agrees with `__eq__`: `a == b` must imply `hash(a) == hash(b)`.\n- Built-in mutable containers (`list`, `dict`, `set`) are unhashable: `hash([1])` gives `TypeError: unhashable type: 'list'`.\n- A **tuple is hashable only if every element is**: `hash(([1],))` also raises `TypeError: unhashable type: 'list'`.\n- If a class defines `__eq__` but not `__hash__`, Python sets `__hash__ = None`. That is what the snippet prints, and `{Point(1)}` raises `TypeError: unhashable type: 'Point'`. Fix it with `def __hash__(self): return hash(self.x)` (using the same fields as `__eq__`) or with `@dataclass(frozen=True)`.\n- Plain user objects with neither method hash by identity.\n- Equal numbers hash equally: `hash(1) == hash(1.0) == hash(True)`, so `{1: 'a', 1.0: 'b', True: 'c'}` is `{1: 'c'}`.",
+    "followups": [
+      "What goes wrong if you mutate an object's hashed fields after putting it in a set?",
+      "Why is `frozenset` hashable but `set` isn't?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-04",
+    "area": "Python language",
+    "topic": "mutability & argument passing",
+    "question": "Is Python pass-by-value or pass-by-reference? What does this print?\n```python\ndef f(a, b):\n    a.append(3)\n    b = b + [3]\n\nx, y = [1], [1]\nf(x, y)\nprint(x, y)\n```",
+    "answer": "Prints `[1, 3] [1]`.\n- It is neither. Python passes **object references** (\"call by sharing\"): each parameter name is bound to the same object the caller passed.\n- **Mutating** that object (`a.append(3)`) is visible to the caller. **Rebinding** the local name (`b = b + [3]` builds a new list) is not.\n- `b += [3]` would be visible, because for lists `+=` calls `__iadd__`, which extends the list in place. For an immutable `str`, `s += \"!\"` makes a new object, so the caller sees no change.\n- Immutable types: `int`, `float`, `str`, `bytes`, `tuple`, `frozenset`. Mutable types: `list`, `dict`, `set`, `bytearray`, and most user classes.\n- Tuple gotcha: with `t = ([1],)`, the statement `t[0] += [2]` **extends the list and then raises** `TypeError: 'tuple' object does not support item assignment`. Afterwards `t == ([1, 2],)`.",
+    "followups": [
+      "How would you write a function that must not modify the caller's list?",
+      "Why does `t[0] += [2]` both succeed and fail?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-05",
+    "area": "Python language",
+    "topic": "complexity of common ops",
+    "question": "Give the time complexity of: `x in list`, `x in set`, `list.append`, `list.pop(0)`, `deque.popleft()`, `d[k]`, `list.sort()`, `heapq.heappush`. You need to dedupe 1M commit SHAs while keeping their order. What do you use?",
+    "answer": "| Operation | Average |\n|---|---|\n| `lst[i]`, `len(lst)`, `lst.append`, `lst.pop()` | O(1) (append is amortised) |\n| `x in lst`, `lst.index`, `lst.insert(0, x)`, `lst.pop(0)` | O(n) |\n| `x in set`, `d[k]`, `d[k] = v`, `del d[k]` | O(1) average, O(n) worst |\n| `deque.append/appendleft/pop/popleft` | O(1) (indexing the middle is O(n)) |\n| `sorted`/`list.sort` (Timsort) | O(n log n); close to O(n) on already-sorted runs |\n| `heappush`/`heappop` O(log n); `heapify` | O(n) |\n| `bisect.bisect_left` O(log n); `bisect.insort` | O(n), because of the shift |\n| slice `lst[a:b]` | O(b-a), and it makes a copy |\n\n- Dedupe while keeping order: `list(dict.fromkeys(shas))`, or loop with a `seen` set. Either is O(n). Checking `if sha not in out_list` makes it O(n²).\n- A quick 3.9 benchmark on 100k ints: `x in list` was about 10⁴ times slower than `x in set`. Each `insert(0)`/`pop(0)` got about 10x slower when the list was 10x bigger, while `deque.popleft` stayed flat.\n- Building a string with `s += piece` in a loop can be O(n²). Use `\"\".join(parts)`.",
+    "followups": [
+      "Why is `x in set` only O(1) on average?",
+      "How would you find the top 10 failing tests from 1M results without sorting everything?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-06",
+    "area": "Python language",
+    "topic": "comprehensions vs generator expressions",
+    "question": "What's the difference between `[f(x) for x in xs]` and `(f(x) for x in xs)`? When do you use each? What does this print?\n```python\ng = (x * x for x in range(4))\nprint(sum(g), sum(g))\n```",
+    "answer": "Prints `14 0`. A generator expression can only be consumed **once**, so the second `sum` sees an empty iterator.\n- A **list comprehension** runs eagerly and builds the whole list in memory. You can index it, `len()` it and loop over it many times.\n- A **generator expression** is lazy. It yields one item at a time with O(1) memory, and you can only loop over it once. Use it for big or streaming data (`sum(len(l) for l in f)`) or when you might stop early (`any(...)`, `next(...)`).\n- There are also dict and set comprehensions: `{n: n*n for n in range(3)}`, `{c for c in \"aab\"}`. Add a filter with a trailing `if`: `[x for x in xs if x > 0]`.\n- In Python 3 the loop variable **does not leak** out of a comprehension. With `x = 'outer'`, running `[x for x in range(3)]` leaves `x == 'outer'`.\n- In 3.12, list/dict/set comprehensions are inlined (PEP 709) and run faster. Their behaviour is the same and the variable still doesn't leak.\n- Readability: once you need two nested loops plus conditions, switch to a normal loop.",
+    "followups": [
+      "How much memory does `[x for x in range(10**6)]` use compared with the generator version?",
+      "How would you flatten a list of lists with a comprehension?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-07",
+    "area": "Python language",
+    "topic": "generators & yield",
+    "question": "What does this print?\n```python\ndef gen():\n    print(\"start\")\n    yield 1\n    print(\"middle\")\n    yield 2\n    print(\"end\")\n\ng = gen()\nprint(\"created\")\nprint(next(g))\nprint(list(g))\nprint(list(g))\n```",
+    "answer": "```\ncreated\nstart\n1\nmiddle\nend\n[2]\n[]\n```\n- Calling `gen()` **runs none of the body**. It only creates a generator object, so `created` prints first.\n- `next(g)` runs up to the first `yield`, prints `start`, returns `1` and **suspends**. The local variables and the current position are saved.\n- `list(g)` resumes the generator: it prints `middle`, collects `2`, prints `end`, and stops when the function returns (`StopIteration`).\n- An exhausted generator stays empty, so the last line prints `[]`.\n- An exception in the body is also raised lazily, on the first `next()`, not when you call the function.\n- `return value` inside a generator becomes `StopIteration.value`. `yield from sub()` hands iteration over to another iterable. `g.send(x)` resumes the generator and makes `x` the value of the paused `yield` expression.\n- Typical use: streaming pipelines such as reading log lines, filtering errors and parsing them, without ever holding the whole file in memory.",
+    "followups": [
+      "How would you turn a 10 GB log-processing script into a generator pipeline?",
+      "What's the difference between `yield` and `return` in a generator?",
+      "What does `yield from` do?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-08",
+    "area": "Python language",
+    "topic": "iterators vs iterables",
+    "question": "What's the difference between an iterable and an iterator? What does this print?\n```python\nclass CountdownIter:\n    def __init__(self, n): self.n = n\n    def __iter__(self): return self\n    def __next__(self):\n        if self.n <= 0:\n            raise StopIteration\n        self.n -= 1\n        return self.n + 1\n\nc = CountdownIter(3)\nprint(list(c), list(c))\n```",
+    "answer": "Prints `[3, 2, 1] []`.\n- An **iterable** has `__iter__()`, which returns a fresh iterator. Lists, dicts, files and ranges are iterables.\n- An **iterator** has `__next__()`, which returns the next item or raises `StopIteration`, plus an `__iter__` that returns itself. It is **single-pass**.\n- `for x in obj` does this: `it = iter(obj)`, then calls `next(it)` repeatedly until it gets `StopIteration`.\n- This class returns `self` from `__iter__`, so it is its own iterator. The first `list()` uses it up and the second gets nothing.\n- To make it reusable, have `__iter__` be a generator that starts over each time:\n```python\ndef __iter__(self):\n    n = self.n\n    while n > 0:\n        yield n\n        n -= 1\n```\n- `in` also consumes items: with `it = iter([1, 2, 3])`, after `2 in it` you get `list(it) == [3]`.",
+    "followups": [
+      "Is a file object an iterator or an iterable? (It is an iterator: `iter(f) is f`.)",
+      "How does `zip` behave when you pass it the same iterator twice?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-09",
+    "area": "Python language",
+    "topic": "itertools",
+    "question": "Which `itertools` functions do you reach for most? What does this print?\n```python\nfrom itertools import groupby\nprint([(k, len(list(g))) for k, g in groupby(\"aabbbaa\")])\n```",
+    "answer": "Prints `[('a', 2), ('b', 3), ('a', 2)]`. `groupby` only groups **consecutive** equal keys, so sort by the same key first: `groupby(sorted(\"aabbbaa\"))` gives `[('a', 4), ('b', 3)]`.\n- `chain(a, b)` / `chain.from_iterable(lists)`: treat several iterables as one, or flatten one level.\n- `islice(it, n)`: take the first n items from any iterator, such as a generator or a file. You can't slice those with `it[:n]`.\n- `count()`, `cycle()`, `repeat()`: infinite or repeating streams.\n- `product`, `permutations`, `combinations`: build test matrices, e.g. `product(boards, configs)`.\n- `accumulate` gives running totals, `zip_longest` zips uneven inputs, and `takewhile`/`dropwhile` cut a stream at a condition. `tee` splits one iterator into several.\n- **Version gotchas:** `pairwise` is 3.10+ and `batched` is 3.12+. Neither exists on 3.9. A batching helper for 3.9:\n```python\ndef batched(iterable, n):\n    it = iter(iterable)\n    while chunk := list(islice(it, n)):\n        yield chunk\n# list(batched(range(7), 3)) -> [[0, 1, 2], [3, 4, 5], [6]]\n```",
+    "followups": [
+      "How would you split 10,000 test IDs into shards of 50 for parallel Jenkins agents?",
+      "Why do the groups from `groupby` become empty if you store them and read them later?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-10",
+    "area": "Python language",
+    "topic": "decorators",
+    "question": "What is a decorator? Write one that logs how long a function took.",
+    "answer": "A decorator is a callable that takes a function and returns a replacement. `@timed` above `def build` is shorthand for `build = timed(build)`.\n```python\nimport functools, time\n\ndef timed(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        start = time.perf_counter()\n        try:\n            return func(*args, **kwargs)\n        finally:\n            print(f\"{func.__name__} took {time.perf_counter() - start:.3f}s\")\n    return wrapper\n\n@timed\ndef build(target): ...\n```\n- `*args, **kwargs` lets the wrapper accept any signature.\n- `functools.wraps` copies `__name__`, `__doc__` and so on, and sets `__wrapped__`. Without it, `build.__name__` is `'wrapper'`, which confuses logs, tracebacks and pytest.\n- `try/finally` makes sure the time is logged even if the function raises.\n- `time.perf_counter()` is a monotonic clock, so it's the right choice for measuring durations. `time.time()` can jump when the system clock changes.\n- Common uses: timing, retries, caching (`functools.lru_cache`), access checks, and registering plugins or handlers.",
+    "followups": [
+      "How do you stack decorators, and in what order do they apply?",
+      "How would you decorate a method versus a function? Does anything change?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-11",
+    "area": "Python language",
+    "topic": "decorators with arguments / retries",
+    "question": "Write a `@retry(times=3, exceptions=(ConnectionError,))` decorator with exponential backoff. Why are there three nested functions?",
+    "answer": "```python\nimport functools, random, time\n\ndef retry(times=3, exceptions=(Exception,), base_delay=0.5):\n    def decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            for attempt in range(1, times + 1):\n                try:\n                    return func(*args, **kwargs)\n                except exceptions as e:\n                    if attempt == times:\n                        raise                      # re-raise the last error unchanged\n                    delay = base_delay * 2 ** (attempt - 1)\n                    time.sleep(delay + random.uniform(0, delay))  # backoff + jitter\n        return wrapper\n    return decorator\n\n@retry(times=3, exceptions=(ConnectionError, TimeoutError))\ndef fetch_build_status(job): ...\n```\n- **Three levels:** `retry(...)` runs first and returns the real decorator. That decorator receives `func` and returns `wrapper`. `@retry(...)` therefore means `f = retry(...)(f)`.\n- Retry only **transient** errors such as timeouts, 5xx responses or a busy device. Never retry a bug like `KeyError`, and never catch `BaseException`, which would swallow `KeyboardInterrupt`.\n- A bare `raise` keeps the original traceback.\n- **Jitter** stops many CI jobs from retrying at the same moment.\n- Only retry **idempotent** operations. Retrying \"flash firmware\" or \"post a Gerrit comment\" can repeat side effects.\n- Log every attempt. Retries that happen silently hide flaky infrastructure.",
+    "followups": [
+      "How would you add a max total time limit as well as a max attempt count?",
+      "Would you write this yourself or use a library (e.g. `tenacity`, or urllib3's `Retry` for HTTP)?",
+      "How do you unit test this without actually sleeping? (Patch `time.sleep`.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-12",
+    "area": "Python language",
+    "topic": "closures & late binding",
+    "question": "What does this print, and how do you fix it?\n```python\nfs = [lambda: i for i in range(3)]\nprint([f() for f in fs])\n```",
+    "answer": "Prints `[2, 2, 2]`.\n- A **closure** is a function that remembers variables from the scope where it was defined. It captures the **variable** (a cell), not the value at that moment.\n- All three lambdas share one `i`, and they look it up only when called. By then the loop has finished and `i == 2`. This is called **late binding**.\n- Fix 1: bind the value with a default argument, which is evaluated at definition time. `[lambda i=i: i for i in range(3)]` gives `[0, 1, 2]`.\n- Fix 2: `functools.partial(func, i)`, or a factory function `def make(i): return lambda: i`.\n- To **rebind** a variable from the enclosing function, use `nonlocal`:\n```python\ndef counter():\n    n = 0\n    def inc():\n        nonlocal n\n        n += 1\n        return n\n    return inc\n```\n- Closures are what make decorators and callback factories work.",
+    "followups": [
+      "Where are the captured variables stored? (`f.__closure__[i].cell_contents`.)",
+      "Does the same bug happen with `def` inside a loop?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-13",
+    "area": "Python language",
+    "topic": "context managers",
+    "question": "What actually happens when you write `with open(path) as f:`? Write a context manager that sets up a resource and always cleans it up.",
+    "answer": "- `with EXPR as x:` calls `EXPR.__enter__()` and binds its return value to `x`. When the block ends, **however** it ends (normally, by exception, or by `return`/`break`), Python calls `__exit__(exc_type, exc, tb)`.\n- If `__exit__` returns a truthy value, the exception is **suppressed**. Return `False`/`None` to let it propagate, which is almost always what you want.\n- Class version:\n```python\nclass DeviceSession:\n    def __init__(self, port): self.port = port\n    def __enter__(self):\n        self.conn = connect(self.port)\n        return self.conn\n    def __exit__(self, exc_type, exc, tb):\n        self.conn.close()\n        return False\n```\n- Generator version, with `contextlib`:\n```python\nfrom contextlib import contextmanager\n\n@contextmanager\ndef device_session(port):\n    conn = connect(port)\n    try:\n        yield conn\n    finally:\n        conn.close()\n```\n- The `try/finally` is required. Without it, the code after `yield` **does not run** when the body raises (verified).\n- Other tools: `contextlib.suppress(FileNotFoundError)`, `ExitStack` for a variable number of resources, and `with a, b:`. Uses: locks, temporary directories, device or SSH sessions, timing blocks. In 3.11+, `contextlib.chdir` temporarily changes directory.",
+    "followups": [
+      "How would you write a timer context manager that logs elapsed time?",
+      "When would you use `ExitStack`?",
+      "Why is suppressing exceptions in `__exit__` usually a bad idea?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-14",
+    "area": "Python language",
+    "topic": "inheritance, super() & MRO",
+    "question": "What does this print? Explain what `super()` really does.\n```python\nclass A:\n    def hi(self): print(\"A\")\nclass B(A):\n    def hi(self): print(\"B\"); super().hi()\nclass C(A):\n    def hi(self): print(\"C\"); super().hi()\nclass D(B, C):\n    def hi(self): print(\"D\"); super().hi()\n\nD().hi()\n```",
+    "answer": "Prints `D`, `B`, `C`, `A`, one per line. `D.__mro__` is `(D, B, C, A, object)`.\n- The **MRO** (method resolution order) is the order Python searches classes for an attribute. It's computed with **C3 linearization**: children come before parents, base order is kept as listed, and every class appears exactly once.\n- `super()` means \"**the next class in the MRO of the instance's type**\", not \"my parent\". So `super()` inside `B` calls `C.hi`, not `A.hi`, when the object is a `D`.\n- Because every class calls `super()`, each method runs once and `A` runs last. This is cooperative multiple inheritance.\n- If there's no consistent order, class creation fails. For example, `class X(A, B)` where `B` subclasses `A` raises `TypeError: Cannot create a consistent method resolution order (MRO) for bases A, B`.\n- In `__init__`, call `super().__init__(...)` so every base class gets initialised. With multiple inheritance, use `**kwargs` so the arguments can pass along the chain.",
+    "followups": [
+      "What would print if `B.hi` called `A.hi(self)` directly instead of `super()`?",
+      "When would you prefer composition over inheritance?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "py-15",
+    "area": "Python language",
+    "topic": "@classmethod, @staticmethod, @property",
+    "question": "Explain `@classmethod`, `@staticmethod` and `@property` with an example of when you'd use each.",
+    "answer": "```python\nclass Temp:\n    def __init__(self, celsius):\n        self.celsius = celsius          # goes through the property setter\n\n    @property\n    def celsius(self):\n        return self._c\n\n    @celsius.setter\n    def celsius(self, v):\n        if v < -273.15:\n            raise ValueError(\"below absolute zero\")\n        self._c = v\n\n    @classmethod\n    def from_fahrenheit(cls, f):        # alternate constructor\n        return cls((f - 32) * 5 / 9)\n\n    @staticmethod\n    def is_valid(v):                    # helper, needs no self/cls\n        return v >= -273.15\n```\n- **Instance method**: gets `self` and works with one object's state.\n- **`@classmethod`**: gets `cls`. Typical use is an **alternate constructor** such as `from_fahrenheit`, `from_json` or `from_env`. Because it uses `cls`, subclasses get back an instance of the subclass.\n- **`@staticmethod`**: gets no implicit argument. It's a plain function placed in the class namespace because it belongs there logically.\n- **`@property`**: makes a method look like an attribute, which lets you add validation or computed values without changing the public API. `Temp.from_fahrenheit(212).celsius` gives `100.0`.\n- A property with no setter is read-only. Assigning to it raises `AttributeError`; the message is `can't set attribute` on 3.9 and `property 'x' of 'Ro' object has no setter` on 3.11+.",
+    "followups": [
+      "Why should `from_json` be a classmethod rather than a staticmethod?",
+      "What's the cost of a property versus a plain attribute?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-16",
+    "area": "Python language",
+    "topic": "dunder methods",
+    "question": "What are dunder methods? What's the difference between `__repr__` and `__str__`? What does this print?\n```python\nclass W:\n    def __init__(self, x): self.x = x\n    def __str__(self): return f\"W={self.x}\"\n\nprint(W(1), [W(1)])\n```",
+    "answer": "Prints `W=1 [<__main__.W object at 0x...>]`. `print` calls `str()` on `W(1)`, but a list displays its **elements with `repr()`**, and `W` has no `__repr__`.\n- Dunder (\"double underscore\") methods are the hooks that make built-in syntax work for your class: `len(x)` calls `__len__`, `a < b` calls `__lt__`, `for` uses `__iter__`, `x[k]` uses `__getitem__`, `in` uses `__contains__`, `with` uses `__enter__`/`__exit__`, `f()` uses `__call__`, `if x:` uses `__bool__` (falling back to `__len__`).\n- `__repr__` is the unambiguous, developer-facing form, ideally something like `Version('1.2.3')`. `__str__` is the readable form. If you only write one, write `__repr__`, because `str()` falls back to it.\n- `__eq__` defaults to identity. Define it (and `__hash__`, if instances will be keys) for value semantics.\n- Defining just `__lt__` is enough for `sorted()` and `max()`. `functools.total_ordering` fills in the remaining comparison methods from `__eq__` plus one ordering method.\n- `@dataclass` generates `__init__`, `__repr__` and `__eq__` for you.",
+    "followups": [
+      "How would you make a `FirmwareVersion('1.10.2')` class sort correctly against `'1.9.0'`?",
+      "What should `__eq__` return when compared with an unrelated type? (`NotImplemented`.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-17",
+    "area": "Python language",
+    "topic": "shallow vs deep copy",
+    "question": "What's the difference between a shallow and a deep copy? What does this print?\n```python\nimport copy\ncfg = {\"targets\": [\"a\", \"b\"], \"retries\": 3}\ns = copy.copy(cfg)\nd = copy.deepcopy(cfg)\ns[\"targets\"].append(\"c\")\ns[\"retries\"] = 5\nprint(cfg)\nprint(d)\n```",
+    "answer": "```\n{'targets': ['a', 'b', 'c'], 'retries': 3}\n{'targets': ['a', 'b'], 'retries': 3}\n```\n- A **shallow copy** makes a new outer container that holds **the same inner objects**. Mutating the shared inner list (`append`) shows up in the original. Rebinding a key on the copy (`s[\"retries\"] = 5`) does not.\n- A **deep copy** recursively copies everything nested inside, so nothing is shared. It handles cycles using a memo dict. It's slower, and some objects (sockets, locks) can't be deep-copied.\n- These are all shallow: `lst[:]`, `list(lst)`, `dict(d)`, `d.copy()`, `copy.copy(x)`.\n- Classic gotcha: `grid = [[0]*3]*3; grid[0][0] = 1` gives `[[1, 0, 0], [1, 0, 0], [1, 0, 0]]`, because all three rows are the same list. Use `[[0]*3 for _ in range(3)]`.\n- In CI tools this matters when you build per-job configs from a shared template. Deep-copy the template, or build a fresh dict for each job.",
+    "followups": [
+      "How would you customise copying for your own class? (`__copy__` / `__deepcopy__`.)",
+      "Is assigning `b = a` a copy at all?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-18",
+    "area": "Python language",
+    "topic": "is vs ==",
+    "question": "What's the difference between `is` and `==`? When should you use `is`?",
+    "answer": "- `==` checks **equality of value** by calling `__eq__`. `is` checks **identity**, i.e. whether both names point to the same object (`id(a) == id(b)`).\n- `a = [1, 2]; b = [1, 2]` gives `a == b` True and `a is b` False.\n- Use `is` only for **singletons**: `x is None`, `x is not None`, and sentinel objects. `x == None` can be fooled by a custom `__eq__`, and `is` is faster.\n- Don't use `is` to compare numbers or strings. CPython caches small ints (-5 to 256) and interns some strings, so `is` *sometimes* works by accident. That's an implementation detail. `int(\"256\") is int(\"256\")` was True and `int(\"257\") is int(\"257\")` was False on 3.9.\n- Since 3.8, `x is 5` triggers `SyntaxWarning: \"is\" with a literal`.\n- NaN edge case: `float('nan') == float('nan')` is False, but `[nan] == [nan]` and `nan in [nan]` are True for the same `nan` object, because container comparisons check identity before `==`.",
+    "followups": [
+      "Why can `x is 256` and `x is 257` behave differently?",
+      "Why is `if not x:` different from `if x is None:`?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-19",
+    "area": "Python language",
+    "topic": "mutable default arguments",
+    "question": "What does this print, and how do you fix it?\n```python\ndef add(item, bucket=[]):\n    bucket.append(item)\n    return bucket\n\nprint(add(1))\nprint(add(2))\n```",
+    "answer": "Prints `[1]` and then `[1, 2]`.\n- A default value is evaluated **once, when the `def` runs**, and stored on the function (`add.__defaults__` is now `([1, 2],)`). Every call that leaves out `bucket` shares that same list.\n- Fix: use `None` as a sentinel.\n```python\ndef add(item, bucket=None):\n    if bucket is None:\n        bucket = []\n    bucket.append(item)\n    return bucket\n```\n- The same trap applies to `{}`, `set()`, and dataclass fields. Dataclasses refuse `tags: list = []` with a `ValueError` and tell you to use `field(default_factory=list)`.\n- Related: `def f(ts=time.time())` freezes the timestamp at definition time.\n- Linters flag this (pylint `dangerous-default-value`, ruff/flake8-bugbear `B006`).",
+    "followups": [
+      "Is there ever a legitimate use of a mutable default? (A deliberate memo cache, though `functools.lru_cache` is clearer.)",
+      "Why use `if bucket is None` rather than `if not bucket`?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-20",
+    "area": "Python language",
+    "topic": "scoping (LEGB)",
+    "question": "What happens when you run this, and why?\n```python\ncount = 0\ndef bump():\n    count += 1\nbump()\n```",
+    "answer": "It raises **`UnboundLocalError`**. The message is `local variable 'count' referenced before assignment` on 3.9 and `cannot access local variable 'count' where it is not associated with a value` on 3.11+.\n- Name lookup follows **LEGB**: **L**ocal, then **E**nclosing function scopes, then **G**lobal (the module), then **B**uiltins.\n- Whether a name is local is decided at **compile time**: any assignment to a name anywhere in a function (`=`, `+=`, `for x`, `import`, `def`) makes it local for the **whole** function. So `count += 1` tries to read a local that has no value yet.\n- Fixes: `global count` (rarely a good idea), `nonlocal count` for a variable in an enclosing function, or better, pass the value in and return the new one.\n- Only modules, functions, classes and comprehensions create scopes. `if`, `for` and `with` blocks do not, so a loop variable is still defined after the loop.\n- Shadowing builtins (`list = [...]`, `id = 5`) silently breaks later calls to `list()`/`id()` in that scope.",
+    "followups": [
+      "Why does reading a global inside a function work, but `+=` doesn't?",
+      "Why does code at class-body level not see class variables from inside a method without `self.`?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-21",
+    "area": "Python language",
+    "topic": "exceptions",
+    "question": "Walk me through `try/except/else/finally`. How would you design custom exceptions for a CI tool? And what does this return?\n```python\ndef f():\n    try:\n        return \"try\"\n    finally:\n        return \"finally\"\n```",
+    "answer": "It returns `\"finally\"`. A `return` inside `finally` overrides the earlier one, and it would also **silently swallow** any exception that was in flight. Avoid it.\n- `try`: the code that might fail.\n- `except SpecificError as e`: runs only if that exception was raised. Catch narrow types, most specific first.\n- `else`: runs only if `try` raised **nothing**. Put follow-on code here so its errors aren't caught by mistake.\n- `finally`: **always** runs, whether the block succeeded, raised or returned. Use it for cleanup, or better, use a context manager.\n- Custom hierarchy:\n```python\nclass CIError(Exception):\n    \"\"\"Base for this tool, so callers can catch everything with one except.\"\"\"\n\nclass FlashError(CIError):\n    def __init__(self, device, rc):\n        super().__init__(f\"flash failed on {device} (rc={rc})\")\n        self.device, self.rc = device, rc\n```\n- Wrap low-level errors with `raise FlashError(dev, rc) from e`. This keeps the original as `__cause__`, so the traceback shows both.\n- Don't use a bare `except:` or `except BaseException`, because they also catch `KeyboardInterrupt` and `SystemExit`. Re-raise with a bare `raise` after logging.",
+    "followups": [
+      "When would you use `else` instead of putting the code at the end of `try`?",
+      "What's the difference between `raise X from e` and raising inside an `except` without `from`?",
+      "How would you map exceptions to process exit codes in a CLI?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-22",
+    "area": "Python language",
+    "topic": "GIL",
+    "question": "What is the GIL? Does it mean threads are useless in Python, and does it make my code thread-safe?",
+    "answer": "- The **Global Interpreter Lock** is a mutex in CPython that lets only **one thread execute Python bytecode at a time** in each interpreter. It mainly protects reference counting and makes C extensions simpler to write.\n- It **is released during blocking I/O** (sockets, files, `subprocess` waits, `time.sleep`) and by many C extensions doing heavy work (e.g. `zlib`, `hashlib` on large buffers, NumPy). So **threads do speed up I/O-bound work**, such as polling 50 Jenkins jobs or downloading artifacts.\n- **CPU-bound pure-Python code doesn't get faster with threads.** Use processes (`multiprocessing` / `ProcessPoolExecutor`), push the hot loop into C or NumPy, or rethink the algorithm.\n- The interpreter asks the running thread to give up the GIL at a fixed **switch interval** (`sys.getswitchinterval()` is `0.005`s by default).\n- **The GIL does not make your code thread-safe.** `counter += 1` is several bytecodes (load, add, store), and a thread switch between them loses updates. Use locks around shared state.\n- Beyond the 3.9-3.12 range: 3.12 added a per-interpreter GIL at the C-API level (PEP 684), and 3.13 ships an experimental free-threaded (\"no-GIL\") build (PEP 703).",
+    "followups": [
+      "How would you speed up hashing 10,000 firmware images?",
+      "Why can a C extension run in parallel with Python threads?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-23",
+    "area": "Python language",
+    "topic": "threading vs multiprocessing vs asyncio",
+    "question": "You need to (a) query the status of 200 Jenkins builds, (b) checksum 500 large firmware images, (c) keep 1,000 device websocket connections open. Which concurrency model do you use for each, and how?",
+    "answer": "| | Best fit | Why |\n|---|---|---|\n| (a) many HTTP calls | `ThreadPoolExecutor` (or asyncio) | I/O-bound; the GIL is released while waiting |\n| (b) CPU-heavy work | `ProcessPoolExecutor` | separate processes, each with its own GIL |\n| (c) thousands of idle connections | `asyncio` | one thread, cheap coroutines, cooperative switching |\n\n```python\nfrom concurrent.futures import ThreadPoolExecutor, as_completed\n\nwith ThreadPoolExecutor(max_workers=16) as ex:\n    futures = {ex.submit(get_status, job): job for job in jobs}\n    for fut in as_completed(futures):          # yields futures as they finish\n        job = futures[fut]\n        try:\n            print(job, fut.result())           # result() re-raises the worker's exception\n        except Exception as e:\n            print(job, \"failed:\", e)\n```\n- `ex.map(fn, items)` returns results **in input order**. It raises the first worker exception when you reach that item, which can hide the other results. `as_completed` gives you per-item error handling.\n- Processes need **picklable** functions and arguments, and an `if __name__ == \"__main__\":` guard (macOS and Windows use the `spawn` start method by default). Startup and data transfer cost more than with threads.\n- asyncio: `async def` plus `await asyncio.gather(*coros)`. Any **blocking call inside a coroutine stalls the whole event loop**: two `time.sleep(0.2)` calls in coroutines took 0.4s, versus 0.2s with `await asyncio.sleep`. Move blocking work off the loop with `await asyncio.to_thread(fn)` (3.9+).\n- Always cap concurrency (`max_workers`, a semaphore) so you don't overload Jenkins or Gerrit.",
+    "followups": [
+      "What's the default `max_workers` for ThreadPoolExecutor? (`min(32, os.cpu_count() + 4)` since 3.8.)",
+      "How do you add a timeout to `fut.result()`?",
+      "When would asyncio be a bad choice?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-24",
+    "area": "Python language",
+    "topic": "race conditions & locks",
+    "question": "Four threads each run `counter += 1` a million times. What's the final value? How do you fix it?\n```python\nimport threading\ncounter = 0\ndef work(n):\n    global counter\n    for _ in range(n):\n        counter += 1\nts = [threading.Thread(target=work, args=(1_000_000,)) for _ in range(4)]\nfor t in ts: t.start()\nfor t in ts: t.join()\nprint(counter)\n```",
+    "answer": "**It isn't guaranteed to be 4,000,000.** `counter += 1` is a read-modify-write (load, add, store). If a thread switch happens between the load and the store, an update is lost. That's a **race condition**.\n- When this card was written, 3.9 printed values like 1,663,973 and 2,202,752. 3.11 and 3.12 printed 4,000,000 every run, because newer interpreters only check for a thread switch at certain points (roughly function calls and loop back-edges). **That's luck, not a guarantee**: changing the line to `counter += one()`, where `one()` just returns 1, brought lost updates back on 3.12 (about 2.0M). Be ready to say this if the interviewer runs it on a new Python and sees a correct total.\n- Fix it with a lock around the critical section:\n```python\nlock = threading.Lock()\ndef work(n):\n    global counter\n    for _ in range(n):\n        with lock:\n            counter += 1\n```\n- Better designs avoid shared mutable state altogether: give each thread its own result and combine them at the end, or use `queue.Queue`, which is thread-safe, for producer/consumer work.\n- Other primitives: `RLock` (one thread can re-acquire it), `Event`, `Semaphore` (caps concurrency), `Condition`.\n- **Deadlock**: two threads take two locks in opposite orders. Always acquire locks in a fixed order, and keep critical sections short.",
+    "followups": [
+      "Is `list.append` from multiple threads safe in CPython?",
+      "How would you detect a race condition in a test suite?",
+      "What's the difference between a Lock and a Semaphore?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "py-25",
+    "area": "Python language",
+    "topic": "collections module",
+    "question": "When would you use `defaultdict`, `Counter`, `deque` and `OrderedDict`? Give a one-line example of each.",
+    "answer": "- **`defaultdict(factory)`**: a missing key is created with `factory()`. Use it for grouping without `if k not in d` checks: `by_module = defaultdict(list); by_module[mod].append(line)`. Watch out: *reading* a missing key also inserts it.\n- **`Counter`**: counts hashable items. `Counter(levels).most_common(3)`. Missing keys return `0` without being inserted. It supports `+`, `-`, `&`, `|`, `update`, `subtract`. Unary `+c` drops counts that are zero or negative.\n- **`deque`**: a double-ended queue with O(1) `append`/`appendleft`/`pop`/`popleft`. Use it as the BFS queue. With `maxlen=N` it keeps only the last N items, which makes it an easy \"tail\": `deque(open(path), maxlen=50)`.\n- **`OrderedDict`**: plain `dict` keeps insertion order since 3.7, so it's mostly needed for its **extra API**. `move_to_end(k)` and `popitem(last=False)` are the building blocks of an **LRU cache**. Its `==` is **order-sensitive** when comparing two OrderedDicts; plain dicts ignore order.\n```python\nfrom collections import Counter, deque\nc = Counter(\"error warn error info error\".split())\nc.most_common(2)          # [('error', 3), ('warn', 1)]\ndq = deque(range(5), maxlen=3)\ndq                        # deque([2, 3, 4], maxlen=3)\n```\n- Also worth knowing: `namedtuple` (lightweight immutable records) and `ChainMap` (layered config lookups, e.g. CLI args over env over defaults).",
+    "followups": [
+      "Implement an LRU cache with OrderedDict. (Or just use `functools.lru_cache`.)",
+      "Why is `deque` better than a list for a queue?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-26",
+    "area": "Python language",
+    "topic": "heapq & bisect",
+    "question": "How do you get the 10 slowest tests out of a million timing records? And how do you keep a list sorted as you insert into it?",
+    "answer": "**heapq** is a binary **min-heap** stored in a plain list (`h[0]` is the smallest item).\n- `heappush`/`heappop` are O(log n) and `heapify` is O(n).\n- Top-k: `heapq.nlargest(10, records, key=lambda r: r.duration)` keeps a heap of size k, so it's O(n log k), cheaper than sorting everything at O(n log n).\n- Max-heap: push `-value`. Ties: push `(priority, seq, item)` with an increasing `seq`, so Python never has to compare the `item`s, which might not support `<`.\n- `heapq.merge(*sorted_logs)` lazily merges already-sorted streams, e.g. timestamped logs from several devices.\n```python\nimport heapq\nh = [5, 1, 4, 2]\nheapq.heapify(h)          # h[0] == 1\nheapq.heappop(h)          # 1\n```\n**bisect** does binary search on a list that is **already sorted**.\n- With `a = [1, 3, 3, 5]`: `bisect_left(a, 3) == 1` (the leftmost insertion point), `bisect_right(a, 3) == 3` (after any equal items).\n- `insort(a, 4)` gives `[1, 3, 3, 4, 5]`. The search is O(log n), but the insert is **O(n)** because the elements shift.\n- Uses: mapping a value onto ranges (latency buckets, version ranges), or finding the first build after a timestamp.\n- `key=` was added to bisect in **3.10**. On 3.9 it raises `TypeError`, so search a separate list of keys instead.",
+    "followups": [
+      "How would you implement a scheduler that always runs the highest-priority job next?",
+      "Heap vs sorted list vs `sorted()` each time: when is each best?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "py-27",
+    "area": "Python language",
+    "topic": "type hints & dataclasses",
+    "question": "Are type hints enforced at runtime? Show how you'd model a CI job config with a dataclass, and name a pitfall.",
+    "answer": "- **Type hints are not enforced at runtime.** `def f(x: int) -> str: return x` happily returns `5`. They exist for readers, IDEs and **static checkers** like mypy or pyright, which you can run in CI. They're also available at runtime in `__annotations__`.\n- Version notes: `list[str]`/`dict[str, int]` work from 3.9. The `int | None` syntax raises `TypeError` at runtime on 3.9 (it's 3.10+), so on 3.9 use `Optional[int]` or add `from __future__ import annotations`.\n```python\nfrom dataclasses import dataclass, field\nfrom typing import List, Optional\n\n@dataclass\nclass Job:\n    name: str\n    retries: int = 3\n    tags: List[str] = field(default_factory=list)   # NOT tags: list = []\n    board: Optional[str] = None\n\nJob(\"build\")   # Job(name='build', retries=3, tags=[], board=None)\n```\n- `@dataclass` generates `__init__`, `__repr__` and `__eq__`. It **does not validate types**: `Job(name=123, retries=\"x\")` is accepted.\n- **Pitfall:** a mutable default like `tags: list = []` raises `ValueError: mutable default ... use default_factory`.\n- `frozen=True` makes instances immutable (assignment raises `FrozenInstanceError`) and hashable. A plain dataclass with the default `eq=True` sets `__hash__ = None`, so you can't put it in a set.\n- `order=True` adds comparison methods, which compare fields in order. Leave a field out of comparisons with `field(compare=False)`.\n- `asdict(job)` converts to a dict, e.g. for `json.dumps`.",
+    "followups": [
+      "Dataclass vs NamedTuple vs a plain dict: when would you use each?",
+      "How would you validate types at runtime if you needed to? (`__post_init__`, or a library like pydantic.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-01",
+    "area": "Practical scripting",
+    "topic": "regex log parsing",
+    "question": "Given log lines like `2026-11-08 10:15:02 [ERROR] flash: write failed at 0x1F00`, write a regex to pull out the timestamp, level, module and message. Then: what do these two lines return?\n```python\ns = '<a href=\"x\">one</a><a href=\"y\">two</a>'\nre.findall(r'<a.*>', s)\nre.findall(r'<a.*?>', s)\n```",
+    "answer": "```python\nimport re\nLINE = re.compile(\n    r\"^(?P<ts>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}) \"\n    r\"\\[(?P<level>[A-Z]+)\\] (?P<module>\\w+): (?P<msg>.*)$\"\n)\nm = LINE.match(line)\nif m:                                   # match() returns None if no match\n    level, module = m[\"level\"], m.group(\"module\")\n    m.groupdict()  # {'ts': '2026-11-08 10:15:02', 'level': 'ERROR', 'module': 'flash', 'msg': 'write failed at 0x1F00'}\n```\n- **Greedy vs lazy:** `.*` matches as much as possible and then backtracks, so the first call returns the **whole string** as one match: `['<a href=\"x\">one</a><a href=\"y\">two</a>']`. `.*?` matches as little as possible, so the second returns `['<a href=\"x\">', '<a href=\"y\">']`. Better still, use a negated class like `[^>]*`, which is clearer and faster.\n- **Named groups** `(?P<name>...)` make the code self-documenting, and adding a group later doesn't shift any indexes.\n- **Compile once** at module level and reuse the pattern in the loop. (`re` also caches recently used patterns, so the main win is clarity and reuse.)\n- Use **raw strings** (`r\"...\"`) so `\\d` isn't treated as a string escape.\n- `match` anchors at the start of the string, `search` finds the first match anywhere, `findall` returns strings or tuples of groups, and `finditer` yields match objects lazily.\n- Always handle `None` from `match`/`search`. Real logs contain lines that don't match.",
+    "followups": [
+      "How would you count ERRORs per module across a 5 GB log?",
+      "What is catastrophic backtracking, and how do you avoid it?",
+      "When would you *not* use a regex? (Structured formats like JSON or CSV: use a real parser.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-02",
+    "area": "Practical scripting",
+    "topic": "streaming large files",
+    "question": "A Jenkins console log is 8 GB and gzipped. Count ERROR lines per module without running out of memory.",
+    "answer": "```python\nimport gzip, re\nfrom collections import Counter\n\nLINE = re.compile(r\"\\[(?P<level>[A-Z]+)\\] (?P<module>\\w+):\")\n\ndef lines(path):\n    opener = gzip.open if path.endswith(\".gz\") else open\n    with opener(path, \"rt\", encoding=\"utf-8\", errors=\"replace\") as f:\n        for line in f:                  # buffered, one line at a time\n            yield line.rstrip(\"\\n\")\n\nerrors = Counter()\nfor line in lines(\"console.log.gz\"):\n    m = LINE.search(line)\n    if m and m[\"level\"] == \"ERROR\":\n        errors[m[\"module\"]] += 1\nprint(errors.most_common(10))\n```\n- **Iterate over the file object.** It reads buffered chunks and yields one line at a time, so memory stays flat. `f.read()` and `f.readlines()` load the whole file into memory.\n- `gzip.open(path, \"rt\")` decompresses as a text stream. You don't need to unzip to disk first.\n- `errors=\"replace\"` stops one bad byte in a device log from crashing the job with `UnicodeDecodeError`.\n- Generator pipelines (read, then filter, then parse, then aggregate) keep every stage lazy and easy to test on their own.\n- Last N lines: `collections.deque(lines(path), maxlen=50)`. This still reads the whole file. For a true tail of a huge file, `seek` near the end and read backwards in blocks.\n- For live logs (\"follow\" mode), read new lines in a loop and sleep when there are none.",
+    "followups": [
+      "How would you process the file in parallel? (Split by byte offset and realign to line boundaries, or one process per file.)",
+      "How would you handle a log whose lines are JSON objects (JSON Lines)?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-03",
+    "area": "Practical scripting",
+    "topic": "CSV & JSON pitfalls",
+    "question": "What can go wrong when parsing CSV and JSON in a script? What does `json.loads(json.dumps({1: \"a\"}))` return?",
+    "answer": "It returns `{'1': 'a'}`. **JSON object keys are always strings**, so int keys don't survive a round trip.\n\n**CSV**\n- Don't `line.split(\",\")`. Quoted fields can contain commas and quotes: `'fw,\"has, comma\"'.split(\",\")` gives `['fw', '\"has', ' comma\"']`, while `csv.reader` correctly gives `['fw', 'has, comma']`.\n- Open files with `newline=\"\"`, which the `csv` docs require so that quoted newlines are handled correctly.\n- Every value comes back as a **string**, so convert types yourself. `csv.DictReader` keys rows by the header row.\n- Files exported from Excel often start with a **UTF-8 BOM**. Opened as plain `utf-8`, the first header becomes `'\\ufeffname'`. Use `encoding=\"utf-8-sig\"`.\n\n**JSON**\n- `json.load(f)` reads from a file and `json.loads(s)` reads from a string.\n- Single quotes and trailing commas are invalid JSON and raise `json.JSONDecodeError`. Catch that error and log the first part of the payload.\n- `json.dumps` raises `TypeError` for sets, datetimes, bytes and custom objects. Use `default=str` or convert them first.\n- Python writes `NaN`/`Infinity` by default, which strict parsers in other languages reject. Pass `allow_nan=False` to fail early instead.\n- Duplicate keys: the **last one silently wins** (`{\"a\":1,\"a\":2}` gives `{'a': 2}`).\n- For huge files, use **JSON Lines** (one object per line) so you can stream them.",
+    "followups": [
+      "How would you validate that a JSON config has the required keys and types?",
+      "How do you write JSON atomically so a crash never leaves a half-written file? (Write to a temp file, then `os.replace`.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-04",
+    "area": "Practical scripting",
+    "topic": "subprocess.run",
+    "question": "Write code that runs `git rev-parse HEAD`, captures the output, fails clearly if git errors, and doesn't hang forever. What does `subprocess.run` return?",
+    "answer": "```python\nimport subprocess\n\ndef head_sha(repo):\n    try:\n        r = subprocess.run(\n            [\"git\", \"rev-parse\", \"HEAD\"],   # list of args: no shell involved\n            cwd=repo,\n            capture_output=True,            # fills r.stdout / r.stderr\n            text=True,                      # decode to str instead of bytes\n            check=True,                     # raise CalledProcessError if rc != 0\n            timeout=30,                     # kill the child and raise TimeoutExpired\n        )\n    except subprocess.CalledProcessError as e:\n        raise RuntimeError(f\"git failed rc={e.returncode}: {e.stderr.strip()}\") from e\n    return r.stdout.strip()\n```\n- It returns a **`CompletedProcess`** with `.args`, `.returncode`, `.stdout` and `.stderr`.\n- **Without `check=True`, a non-zero exit is not an error.** You have to check `r.returncode` yourself, and forgetting to is the classic bug where CI goes green after a failed command.\n- `CalledProcessError` exposes `.returncode`, `.cmd`, `.stdout` and `.stderr`. `TimeoutExpired` is raised once the child has been killed. Both subclass `SubprocessError`.\n- If the executable doesn't exist you get `FileNotFoundError`, not `CalledProcessError`.\n- `capture_output=True` is shorthand for `stdout=PIPE, stderr=PIPE`. Merge the two streams with `stdout=PIPE, stderr=STDOUT`.\n- For long-running commands where you want live output, use `subprocess.Popen` and read `proc.stdout` line by line.",
+    "followups": [
+      "Why can `Popen` with `stdout=PIPE` deadlock, and how does `communicate()` avoid it?",
+      "How would you stream a 30-minute build's output to the console and to a log file at the same time?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-05",
+    "area": "Practical scripting",
+    "topic": "shell=True risks",
+    "question": "Why is `subprocess.run(f\"git checkout {branch}\", shell=True)` dangerous? When, if ever, is `shell=True` OK?",
+    "answer": "- With `shell=True` the string is handed to `/bin/sh`, so any **shell metacharacters in the input get executed**. When this card was tested, `branch = \"main; echo INJECTED\"` ran a second command: the output was `'checking out main\\nINJECTED\\n'`. A branch name or Gerrit topic from an untrusted change can contain `;`, `$(...)`, backticks or `|`. That is **command injection** on your CI agent, which holds credentials.\n- With a **list of args and no shell**, the same string reaches the program as one literal argument and nothing gets injected.\n- Quoting and whitespace bugs also go away. Paths with spaces just work.\n- If you really need shell features (pipes, globs, `&&`), either:\n  - do them in Python: chain `subprocess.run` calls passing `input=`, use `glob`/`pathlib`, check return codes; or\n  - quote every interpolated value with `shlex.quote(value)`.\n- `shlex.split(\"git log --format='%H %s' -n 3\")` turns a command string into a safe arg list: `['git', 'log', '--format=%H %s', '-n', '3']`.\n- With `shell=True` the return code is the **shell's**, and in a pipeline it's usually the last command's. Failures earlier in the pipe can be hidden unless you use `set -o pipefail` in bash.",
+    "followups": [
+      "How would you safely run `grep ERROR build.log | wc -l` from Python?",
+      "What other injection risks exist in CI scripts? (Jenkins parameters interpolated into `sh` steps, environment variables.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-06",
+    "area": "Practical scripting",
+    "topic": "os vs pathlib",
+    "question": "`os.path` or `pathlib`? Show how you'd find all `*.log` files under a build directory and write a summary next to each.",
+    "answer": "```python\nfrom pathlib import Path\n\nbuild = Path(\"/var/ci/build-42\")\nfor log in build.rglob(\"*.log\"):                 # recursive glob\n    summary = log.with_suffix(\".summary.txt\")    # build-42/x/foo.log -> foo.summary.txt\n    summary.write_text(summarize(log.read_text(errors=\"replace\")))\n\nout = build / \"reports\"                          # join with /\nout.mkdir(parents=True, exist_ok=True)\n```\n- **pathlib** is object-oriented and cross-platform: `/` joins paths, and you get `.name`, `.stem`, `.suffix`, `.suffixes`, `.parent`, `.exists()`, `.is_file()`, `.glob()`, `.read_text()`, `.unlink(missing_ok=True)`. Prefer it in new code.\n- For `p = Path(\"/var/log/fw/build-42.log.gz\")`: `p.stem == \"build-42.log\"`, `p.suffix == \".gz\"`, `p.suffixes == ['.log', '.gz']`.\n- **os / os.path** is string-based and still needed for `os.environ`, `os.getcwd()`, `os.replace()` (an atomic rename on the same filesystem), `os.walk()` on 3.9-3.11 (`Path.walk` only arrived in 3.12), and permissions and process details.\n- `shutil` does the higher-level work: `copytree`, `rmtree`, `move`, `which` (find an executable on PATH).\n- Gotcha: joining an absolute path **discards everything before it**: `Path(\"/a\") / \"/b\"` and `os.path.join(\"/a\", \"/b\")` both give `/b`. Watch for this with user-supplied paths.\n- Most APIs (`open`, `subprocess`, `shutil`) accept `Path` objects directly.",
+    "followups": [
+      "How do you write a file atomically?",
+      "How would you make a temp working directory that cleans itself up? (`tempfile.TemporaryDirectory()` as a context manager.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-07",
+    "area": "Practical scripting",
+    "topic": "argparse",
+    "question": "Build the CLI for a tool `trigger_tests.py 12345 --board j3 --retries 2 -v` (12345 is a Gerrit change number). What happens when a user passes `abc` as the change?",
+    "answer": "```python\nimport argparse\n\ndef parse_args(argv=None):\n    p = argparse.ArgumentParser(description=\"Trigger firmware tests for a Gerrit change\")\n    p.add_argument(\"change\", type=int, help=\"Gerrit change number\")\n    p.add_argument(\"--board\", choices=[\"j3\", \"j5\"], required=True)\n    p.add_argument(\"--retries\", type=int, default=2)\n    p.add_argument(\"-v\", \"--verbose\", action=\"store_true\")\n    return p.parse_args(argv)\n\nargs = parse_args([\"12345\", \"--board\", \"j3\"])\n# Namespace(change=12345, board='j3', retries=2, verbose=False)\n```\n- `type=int` converts and validates. For `abc`, argparse prints usage plus `error: argument change: invalid int value: 'abc'` to stderr and **exits with status 2** by raising `SystemExit(2)`.\n- `choices`, `required`, `default`, `action=\"store_true\"` / `\"count\"` / `\"append\"`, `nargs`, and `--help` generated for free.\n- **Subcommands** (`ci trigger ...`, `ci status ...`): `sub = p.add_subparsers(dest=\"cmd\", required=True)`, then `sub.add_parser(\"trigger\")`.\n- Have `parse_args(argv=None)` accept an argument list so tests can call it directly without touching `sys.argv`.\n- Exit-code conventions matter in CI: `0` means success and non-zero means failure. Use a clear `sys.exit(main())` and distinct codes for distinct failures.\n- Defaults from the environment: `default=os.environ.get(\"JENKINS_URL\")`.",
+    "followups": [
+      "How would you test the CLI? (Call `parse_args([...])`; use `pytest.raises(SystemExit)` for bad input.)",
+      "argparse vs click/typer: trade-offs?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-08",
+    "area": "Practical scripting",
+    "topic": "requests: sessions, timeouts, retries",
+    "question": "You're writing a client for the Jenkins or Gerrit REST API that will run thousands of times a day in CI. How do you make the HTTP calls robust?",
+    "answer": "```python\nimport requests\nfrom requests.adapters import HTTPAdapter\nfrom urllib3.util.retry import Retry\n\nsession = requests.Session()\nsession.auth = (\"ci-bot\", token)                 # or a header with a token\nretry = Retry(total=5, backoff_factor=0.5,\n              status_forcelist=[429, 500, 502, 503, 504],\n              allowed_methods=[\"GET\", \"HEAD\"])   # only retry idempotent methods\nsession.mount(\"https://\", HTTPAdapter(max_retries=retry))\n\nr = session.get(url, params={\"q\": \"status:open\"}, timeout=(3.05, 30))\nr.raise_for_status()                              # 4xx/5xx -> requests.HTTPError\ndata = r.json()\n```\n- **Always pass a `timeout`.** requests has **no default timeout** and can hang forever. You can pass a single number or a `(connect, read)` tuple.\n- A **Session** reuses TCP/TLS connections (keep-alive) and carries auth, headers and cookies across calls. It's much faster than calling `requests.get` again and again.\n- **Retries** belong on transient failures only: connection errors, 5xx, and 429. urllib3's `Retry` uses exponential backoff and by default honours a `Retry-After` header on 413, 429 and 503 responses. Don't retry non-idempotent POSTs unless the API supports idempotency keys.\n- Without `raise_for_status()` (or a `status_code` check), a 404 or 500 HTML page flows straight into `.json()` and fails confusingly.\n- Catch `requests.RequestException`, the base class for `Timeout`, `ConnectionError` and `HTTPError`.\n- Never hard-code tokens. Read them from the Jenkins credentials store or an environment variable, and keep them out of logs.\n- Gerrit quirk: its JSON responses begin with the anti-XSSI prefix `)]}'`. Strip the first line before `json.loads`.",
+    "followups": [
+      "How would you test this client without hitting the network?",
+      "Connect timeout vs read timeout: what's the difference?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-09",
+    "area": "Practical scripting",
+    "topic": "pagination & rate limits",
+    "question": "An API returns results 100 at a time and sometimes answers `429 Too Many Requests`. Write a function that fetches all items.",
+    "answer": "```python\nimport time, requests\n\ndef fetch_all(session, url, page_size=100, max_wait=60):\n    items, start = [], 0\n    while True:\n        r = session.get(url, params={\"n\": page_size, \"S\": start}, timeout=30)\n        if r.status_code == 429:\n            wait = r.headers.get(\"Retry-After\", \"5\")\n            time.sleep(min(int(wait) if wait.isdigit() else 5, max_wait))\n            continue                              # retry the same page\n        r.raise_for_status()\n        page = parse(r)                           # e.g. strip Gerrit's )]}' prefix, then json\n        items.extend(page)\n        if not page or not page[-1].get(\"_more_changes\"):\n            break\n        start += len(page)\n    return items\n```\n- **Pagination styles:** offset/limit (Gerrit `/changes/` uses `n` and `S`, and puts `_more_changes: true` on the last item when there are more), page numbers, cursor/next-token, or a `Link: <...>; rel=\"next\"` header (`r.links[\"next\"][\"url\"]` in requests).\n- Stop on an empty page **or** on the API's explicit \"no more\" signal. Don't assume a short page means the end unless the API documents that.\n- Offset paging over data that is still changing can skip or duplicate items. Prefer cursors, or dedupe by ID.\n- **429:** honour `Retry-After`. It can be a number of seconds *or* an HTTP date, which this sketch treats as 5s. Otherwise back off exponentially with jitter, cap the total wait, and log it.\n- Be a good citizen. Throttle proactively: limit concurrency, add a small delay, and only request the fields you need (for example Jenkins' `?tree=` parameter).\n- Make it a generator (`yield from page`) if callers can process items as they arrive.",
+    "followups": [
+      "How would you resume after a crash halfway through 50,000 items?",
+      "How would you share one rate limit across 8 threads?"
+    ],
+    "level": "stretch"
+  },
+  {
+    "id": "sc-10",
+    "area": "Practical scripting",
+    "topic": "bytes, struct, endianness, bit masks",
+    "question": "A firmware header is 7 bytes: `01 00 00 00 34 12 ff`, a little-endian uint32 version, a uint16 board ID and a uint8 flags byte. Parse it, then check whether flag bit 5 is set.",
+    "answer": "```python\nimport struct\nraw = bytes.fromhex(\"01000000 3412 ff\")\nversion, board, flags = struct.unpack(\"<IHB\", raw)   # (1, 4660, 255)\nstruct.unpack(\">IHB\", raw)                           # big-endian: (16777216, 13330, 255)\nboard == 0x1234                                      # True\nbool(flags & (1 << 5))                               # test bit 5 -> True\n```\n- **Endianness:** little-endian stores the least significant byte first (x86, ARM in its usual configuration). `<` means little, `>` and `!` mean big/network order. Formats: `B`/`H`/`I`/`Q` are unsigned 8/16/32/64-bit, and lower case means signed. `struct.unpack(\"<i\", b\"\\xff\\xff\\xff\\xff\")` gives `(-1,)`, while `\"<I\"` gives `(4294967295,)`.\n- **Always give an explicit byte order.** Native `@` (the default) also adds C alignment padding: `calcsize(\"@BI\") == 8` but `calcsize(\"<BI\") == 5`.\n- For single ints: `int.from_bytes(b\"\\x34\\x12\", \"little\") == 4660`, and `(0x1234).to_bytes(2, \"little\") == b\"4\\x12\"`.\n- **Masks:** with `reg = 0b1011_0110`:\n  - `reg & 0x0F` reads the low nibble (6).\n  - `(reg >> 4) & 0xF` reads the high nibble (11).\n  - `reg | (1 << n)` sets bit n.\n  - `reg & ~(1 << n)` clears it.\n  - `reg ^ (1 << n)` toggles it.\n- Python ints have unlimited size, so mask to emulate fixed width: `hex(-1 & 0xFFFFFFFF) == '0xffffffff'`.\n- Hex helpers: `b\"\\xde\\xad\".hex() == 'dead'`, `bytes.fromhex(\"dead\")`, `int(\"1F\", 16) == 31`, `f\"{255:#06x}\" == '0x00ff'`, `f\"{5:08b}\" == '00000101'`.\n- Indexing `bytes` gives an int (`b\"abc\"[0] == 97`). Slicing gives bytes (`b\"abc\"[0:1] == b\"a\"`).",
+    "followups": [
+      "How would you verify a CRC32 over the payload? (`zlib.crc32(data) & 0xFFFFFFFF`.)",
+      "How would you parse an array of N fixed-size records? (`struct.iter_unpack`.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "sc-11",
+    "area": "Practical scripting",
+    "topic": "implementing without built-ins",
+    "question": "Without using `max`, `sorted` or `Counter`, write functions for the max of a list, the count of each item, and a sort. Why do interviewers ask this?",
+    "answer": "```python\ndef my_max(xs):\n    if not xs:\n        raise ValueError(\"empty\")         # say what you do on empty input\n    best = xs[0]\n    for x in xs[1:]:\n        if x > best:\n            best = x\n    return best\n\ndef counts(xs):\n    out = {}\n    for x in xs:\n        out[x] = out.get(x, 0) + 1\n    return out\n\ndef insertion_sort(a):                    # O(n^2), stable, fine for small n\n    a = list(a)                           # don't mutate the caller's list\n    for i in range(1, len(a)):\n        key, j = a[i], i - 1\n        while j >= 0 and a[j] > key:\n            a[j + 1] = a[j]\n            j -= 1\n        a[j + 1] = key\n    return a\n```\n- Results: `my_max([3, 9, 2]) == 9`, `counts(\"abca\") == {'a': 2, 'b': 1, 'c': 1}`, `insertion_sort([5, 2, 9, 1]) == [1, 2, 5, 9]`.\n- **Why they ask:** to see loops, invariants, edge cases (an empty list, one element, duplicates, negatives) and complexity reasoning without library help. It's also a quick check that you didn't just memorise APIs.\n- Talk through the complexity: max and count are O(n) time; count uses O(k) space for k distinct items. Insertion sort is O(n²); merge sort is O(n log n), stable, and uses O(n) extra space. Mention that real code uses `sorted` (Timsort).\n- Common follow-up variant: the second-largest *distinct* value in one pass. Track `first` and `second`, and handle duplicates and the `None` case.\n- Say which input you mutate, and what you return on empty input. Interviewers notice.",
+    "followups": [
+      "Write merge sort. Is it stable?",
+      "Find the second-largest distinct value in one pass.",
+      "How would you find the most frequent item without a dict? (Sort, then scan runs.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-01",
+    "area": "Testing",
+    "topic": "pytest fixtures",
+    "question": "What is a pytest fixture? Explain fixture scope, `yield` fixtures and `conftest.py`. Write a fixture that opens a connection to a test device once per module and always closes it.",
+    "answer": "```python\n# conftest.py  (pytest finds it automatically; tests don't import it)\nimport pytest\n\n@pytest.fixture(scope=\"module\")\ndef device():\n    dev = connect(\"dev0\")      # setup\n    yield dev                  # the test runs here and receives dev\n    dev.close()                # teardown, runs even if the test failed\n\n@pytest.fixture\ndef cfg_file(tmp_path):        # fixtures can use other fixtures\n    p = tmp_path / \"cfg.json\"\n    p.write_text('{\"board\": \"j3\"}')\n    return p\n\n# test_flash.py\ndef test_version(device):      # requested by naming it as a parameter\n    assert device.version().startswith(\"1.\")\n```\n- A fixture provides setup, and optionally teardown, through **dependency injection**: a test asks for it by parameter name.\n- **Scope** controls how often it is created: `function` (the default, fresh for every test), `class`, `module`, `package` or `session`. Use wider scopes for expensive resources like devices, servers or builds.\n- Wider scope also means **state shared between tests**. When this was tested, a module-scoped dict that `test_one` appended to made `test_two` pass only when it ran after `test_one`. That is an order-dependency bug waiting to happen.\n- In a `yield` fixture the code after `yield` is the teardown. Teardowns run in reverse order of setup.\n- `conftest.py` shares fixtures with every test in its directory and the directories below it.\n- Useful built-in fixtures: `tmp_path`, `monkeypatch`, `capsys`, `caplog`. `autouse=True` applies a fixture without anyone requesting it, so use it sparingly.",
+    "followups": [
+      "What happens if the setup code before `yield` raises?",
+      "How would you share a fixture across a whole test session but reset its state between tests?",
+      "What's `request.addfinalizer` and when would you use it instead of yield?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-02",
+    "area": "Testing",
+    "topic": "parametrize",
+    "question": "How do you run the same test against many inputs in pytest? How many tests does this generate, and what are their IDs?\n```python\n@pytest.mark.parametrize(\"x\", [1, 2])\n@pytest.mark.parametrize(\"y\", [\"a\", \"b\"])\ndef test_combo(x, y): ...\n```",
+    "answer": "**Four tests**, one for each combination: `test_combo[a-1]`, `test_combo[a-2]`, `test_combo[b-1]`, `test_combo[b-2]`. Stacked `parametrize` decorators produce the **cartesian product**.\n```python\n@pytest.mark.parametrize(\n    \"raw, expected\",\n    [\n        (\"0x1F\", 31),\n        (\"10\", 16),\n        pytest.param(\"zz\", None, marks=pytest.mark.xfail(raises=ValueError, strict=True)),\n    ],\n    ids=[\"hex-prefix\", \"plain\", \"bad\"],\n)\ndef test_parse_hex(raw, expected):\n    assert int(raw, 16) == expected\n```\n- Each parameter set is a **separate test**, with its own pass/fail result and ID. This is far better than a `for` loop inside one test, which stops at the first failure and hides the rest.\n- Use `ids=` or `pytest.param(..., id=\"...\")` for readable names, then run one case with `pytest -k hex-prefix` or `pytest \"test_x.py::test_parse_hex[plain]\"`.\n- `pytest.param(..., marks=...)` lets you mark a single case as xfail or skip.\n- Good for test matrices such as boards × firmware configs. Watch for combinatorial explosion, though: keep the full product for nightly runs and a representative subset for presubmit.\n- `indirect=True` passes the parameter to a fixture (`request.param`) instead of the test, e.g. to set up a device for each board.",
+    "followups": [
+      "How would you parametrize a test over a list of boards read from a config file?",
+      "How do you parametrize a fixture itself? (`@pytest.fixture(params=[...])`.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-03",
+    "area": "Testing",
+    "topic": "markers",
+    "question": "What are pytest markers? How would you split a firmware test suite into a fast presubmit set and a slow nightly set that needs hardware?",
+    "answer": "```ini\n# pytest.ini\n[pytest]\naddopts = --strict-markers\nmarkers =\n    smoke: fast checks run on every Gerrit patchset\n    hardware: needs a physical device attached\n    slow: takes more than 1 minute\n```\n```python\n@pytest.mark.smoke\ndef test_boot_banner(): ...\n\n@pytest.mark.hardware\n@pytest.mark.slow\ndef test_full_flash_cycle(device): ...\n\n@pytest.mark.skipif(sys.platform == \"win32\", reason=\"needs POSIX tools\")\ndef test_tar(): ...\n\n@pytest.mark.xfail(reason=\"BUG-1234 watchdog reset\", strict=True)\ndef test_watchdog(): ...\n```\n- Select tests with expressions: `pytest -m smoke` for presubmit, `pytest -m \"not hardware\"` on agents without devices, `pytest -m \"slow and hardware\"` for the nightly run. `-k` selects by name substring instead.\n- **Register custom markers.** An unregistered marker only triggers `PytestUnknownMarkWarning`, so a typo like `@pytest.mark.smok` silently drops the test from `-m smoke`. `--strict-markers` turns that typo into an error.\n- `skip` / `skipif(cond, reason=...)`: don't run the test at all.\n- `xfail`: run it but expect a failure. With `strict=True`, an unexpected pass (XPASS) **fails** the run, which tells you to remove the marker once the bug is fixed. Always link a bug ID in `reason`.\n- Markers can also be applied in bulk: `pytestmark = pytest.mark.hardware` at module level, or added in `conftest.py` hooks (`pytest_collection_modifyitems`).",
+    "followups": [
+      "skip vs xfail: when do you use each?",
+      "How would you automatically skip hardware tests when no device is connected?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-04",
+    "area": "Testing",
+    "topic": "mocking: patch where it's looked up",
+    "question": "`ci_tools.py` does `from subprocess import run` and calls `run([\"git\", \"rev-parse\", \"HEAD\"], ...)`. Your test does `with patch(\"subprocess.run\") as m:`, but the real git still runs. Why, and how do you fix it?",
+    "answer": "- `patch` replaces a **name in a namespace**, not the function object itself. `from subprocess import run` copied a reference into `ci_tools`'s own namespace at import time, so patching `subprocess.run` leaves `ci_tools.run` pointing at the real function. This was verified: the real `git` ran and raised `CalledProcessError`, and the mock recorded no calls.\n- **Rule: patch where the name is looked up, not where it's defined.**\n```python\nfrom unittest.mock import patch\nimport subprocess, ci_tools\n\ndef test_head_sha():\n    fake = subprocess.CompletedProcess(args=[], returncode=0, stdout=\"abc123\\n\", stderr=\"\")\n    with patch(\"ci_tools.run\", return_value=fake) as m:\n        assert ci_tools.head_sha() == \"abc123\"\n    m.assert_called_once_with([\"git\", \"rev-parse\", \"HEAD\"],\n                              capture_output=True, text=True, check=True)\n```\n- If the module does `import subprocess` and calls `subprocess.run(...)`, then patching `\"ci_tools.subprocess.run\"` (or `\"subprocess.run\"`) works, because the attribute is looked up at call time.\n- `patch` works as a decorator, a context manager, or with `start()`/`stop()`. pytest's `monkeypatch.setattr(ci_tools, \"run\", fake_run)` follows the same rule and undoes itself automatically.\n- Use `autospec=True` or `create_autospec` so the mock enforces the real signature. Without it, a mock accepts any arguments and tests can pass against an API that doesn't exist.",
+    "followups": [
+      "Patching with a decorator: in what order are the mock arguments passed when you stack several `@patch`es? (Bottom-up.)",
+      "Why is over-mocking a smell?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-05",
+    "area": "Testing",
+    "topic": "Mock: return_value, side_effect, assertions",
+    "question": "Explain `return_value` vs `side_effect`, `Mock` vs `MagicMock`, and `assert_called_with` vs `assert_called_once_with`. How would you make a mock fail twice and then succeed?",
+    "answer": "```python\nfrom unittest.mock import Mock, MagicMock, call\n\nm = Mock(side_effect=[TimeoutError(\"t1\"), TimeoutError(\"t2\"), \"ok\"])\n# 1st call raises, 2nd raises, 3rd returns \"ok\"; a 4th raises StopIteration\n```\n- **`return_value`**: what every call returns.\n- **`side_effect`** takes precedence when it's set, and can be:\n  - an **exception** (class or instance), which is raised on every call;\n  - an **iterable**, giving one item per call, where exception items are raised. Ideal for testing retry logic;\n  - a **function**, called with the same args, whose result is returned. Use it for input-dependent fakes, e.g. `Mock(side_effect=lambda x: x * 2)(4) == 8`.\n- **`MagicMock`** pre-configures magic methods (`__len__`, `__iter__`, `__enter__`/`__exit__`, ...). `len(MagicMock())` works, but `len(Mock())` raises `TypeError`. `patch` creates `MagicMock`s by default.\n- **Assertions:** `assert_called_with(...)` checks only the **most recent** call. `assert_called_once_with(...)` also requires exactly one call. There are also `assert_any_call`, `assert_has_calls([call(1), call(2)])`, `assert_not_called()`, and `call_count`, `call_args`, `call_args_list`.\n- **Typo trap:** `m.called_once_with(2)` is not an assertion. On 3.9 it silently returns a new (truthy) Mock and checks nothing. 3.12 raises `AttributeError` for it, and 3.11 already rejects `asert`/`assrt`/`aseert` prefixes. `autospec`/`spec` catches typos on any version.",
+    "followups": [
+      "How do you assert a mock was called with *some* argument you don't care about? (`mock.ANY`.)",
+      "How would you mock a context manager like `open()`? (`mock_open`.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-06",
+    "area": "Testing",
+    "topic": "flaky tests: causes",
+    "question": "What makes a test flaky? List the most common causes you'd look for in a firmware CI pipeline.",
+    "answer": "A flaky test **passes and fails on the same code** with no change. Common causes:\n- **Timing / async:** fixed `sleep(2)` instead of waiting for a condition, too-tight timeouts, races between the test and a device boot, log flush or background thread. Fix: poll with a deadline (`wait_until(lambda: dev.ready(), timeout=30)`).\n- **Order dependence / shared state:** a test relies on state left by another (globals, module- or session-scoped fixtures, files, environment variables, a device left in a bad mode). It passes in suite order and fails alone or shuffled.\n- **External dependencies:** network, artifact servers, Gerrit/Jenkins APIs, DNS, rate limits, or shared lab hardware such as flaky USB, power or serial connections.\n- **Randomness:** unseeded random data, hash-order assumptions (set order of strings changes between runs), `uuid`s or timestamps in expected output.\n- **Time and environment:** wall-clock time (midnight, DST, time zones), locale, CPU load on a shared agent, disk-space or port collisions when tests run in parallel.\n- **Resource leaks:** unclosed files, sockets or processes building up until a later test fails.\n- **Real bugs:** some \"flakes\" are genuine intermittent firmware or driver races. Treat them as signal, not noise, until proven otherwise.",
+    "followups": [
+      "How would you tell a flaky test apart from a real intermittent product bug?",
+      "How do you reproduce an order-dependent failure? (Run the test alone, reverse or shuffle the order, bisect the preceding tests.)"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-07",
+    "area": "Testing",
+    "topic": "flaky tests: detection & quarantine",
+    "question": "Your team's presubmit fails around 15% of the time for reasons unrelated to the change. How do you detect flaky tests, and what are the risks of auto-retrying or quarantining them?",
+    "answer": "**Detect**\n- **Rerun on failure:** if a test fails and then passes on the **same commit**, mark it flaky. Plugins like `pytest-rerunfailures` (`--reruns 2`) do this. Record the flip, don't just hide it.\n- **History:** store per-test results (pass/fail, duration, agent, commit) and compute a flake rate. A test that flips on unchanged code across many runs is flaky.\n- **Stress runs:** rerun a suspect many times (e.g. with `pytest-repeat`'s `--count`), shuffle the order (`pytest-randomly`), or run under load or in parallel (`pytest-xdist`) to bring out timing and order issues.\n- Correlate failures with the agent, device or time of day. Often one bad lab machine is the cause.\n\n**Quarantine**\n- Move known-flaky tests into a non-blocking lane (a marker plus a separate job). They still run and get reported, but don't gate submits. Each one needs an **owner, a bug and an expiry date**.\n\n**Risks**\n- **Auto-retry hides real intermittent bugs**, such as a firmware race that fails 1 time in 10, and the bug ships.\n- Quarantine becomes a **graveyard**: coverage silently shrinks and real regressions land in the quarantined tests unnoticed.\n- Retries add CI time and cost, and can mask infrastructure decay.\n- Mitigations: cap retries, always report \"passed on retry\" as a distinct status, alert when the flake rate rises, make un-quarantining require a fix plus N clean runs, and track the quarantine size as a metric.",
+    "followups": [
+      "How could AI or automation help here? (Clustering failure signatures and logs, auto-filing bugs, suggesting likely culprit changes.)",
+      "Would you retry at the test level or the job level?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-08",
+    "area": "Testing",
+    "topic": "unit vs integration vs system tests",
+    "question": "Explain unit, integration and system tests, with an example of each for a firmware CI tool or a firmware feature. How should a pipeline balance them?",
+    "answer": "- **Unit test:** one function or class in isolation, with dependencies faked. Milliseconds each, deterministic, runs on every commit. *Example:* `parse_build_log()` returns the right error counts for a sample log string; a version-compare function orders `1.10.0` after `1.9.0`.\n- **Integration test:** several real components together, checking the **seams**. *Example:* the tool really calls `git` against a temporary repo, or talks to a local Jenkins/Gerrit test instance or a recorded API, and the firmware image builder output is parsed by the flasher.\n- **System / end-to-end test:** the whole product in a realistic environment. *Example:* build the firmware, flash it to real hardware (hardware-in-the-loop) or a simulator, boot it, run feature checks and read the serial logs.\n- **Test pyramid:** many fast unit tests, fewer integration tests, and a small set of slow, expensive, flakier system tests. Each level up gives more confidence per test but costs more and gives slower feedback.\n- **Pipeline:** unit + lint + a small smoke set on each Gerrit patchset (fast **Verified** vote), wider integration post-merge, full hardware or system suites nightly or before a release.\n- Push each bug's test **down to the lowest level** that can catch it.",
+    "followups": [
+      "Where do contract tests or recorded-API tests fit?",
+      "What's hardware-in-the-loop, and why is it expensive to scale?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-09",
+    "area": "Testing",
+    "topic": "regression suites",
+    "question": "What is a regression suite? A nightly firmware run starts failing and there are 40 commits since the last green run. How do you find the culprit?",
+    "answer": "- A **regression suite** is the set of tests that guards behaviour that already works: every fixed bug gets a test so it can't come back. It grows over time, so it needs curation (drop duplicates, fix or delete flaky tests, keep runtime in check).\n- **Tiers:** smoke (minutes, every change) < presubmit < full regression (nightly, or on release branches). Use **test selection**, i.e. running tests mapped to the files or components that changed, to keep presubmit fast. Run the full set periodically as a safety net.\n- **Find the culprit with bisection.** Between the last good and first bad commit, binary search takes about log2(40), so roughly 6 builds instead of 40:\n```bash\ngit bisect start <bad_sha> <good_sha>\ngit bisect run ./ci/repro.sh      # exit 0 = good, 1-127 = bad, 125 = skip (can't build)\ngit bisect reset\n```\n- `repro.sh` must be deterministic. If the test is flaky, run it N times per step, or bisection will blame the wrong commit.\n- Before bisecting, rule out non-code causes: did the test infrastructure, toolchain, device lab or a dependency change? Then compare logs between good and bad runs.\n- Automate it: on a new nightly failure, a bot bisects, identifies the suspect Gerrit change, and comments on it or notifies the author.",
+    "followups": [
+      "How would you choose which tests to run for a given change?",
+      "What would you do if bisection points to a merge commit?"
+    ],
+    "level": "core"
+  },
+  {
+    "id": "te-10",
+    "area": "Testing",
+    "topic": "testing code that calls subprocess or the network",
+    "question": "How do you unit-test a function that shells out to `git` and then posts the result to a REST API, without needing git, a network or credentials?",
+    "answer": "```python\nimport subprocess\nimport ci_tools\n\ndef test_report_head(monkeypatch):\n    def fake_run(cmd, **kwargs):\n        assert cmd[:2] == [\"git\", \"rev-parse\"]\n        return subprocess.CompletedProcess(cmd, 0, stdout=\"abc123\\n\", stderr=\"\")\n    monkeypatch.setattr(ci_tools.subprocess, \"run\", fake_run)\n\n    posted = {}\n    class FakeSession:\n        def post(self, url, json, timeout):\n            posted.update(url=url, body=json)\n            return type(\"R\", (), {\"status_code\": 200, \"raise_for_status\": lambda self: None})()\n\n    ci_tools.report_head(session=FakeSession())          # dependency injection\n    assert posted[\"body\"][\"sha\"] == \"abc123\"\n```\n- **Fake the boundary, not your own logic.** Return a real `subprocess.CompletedProcess` with a chosen `returncode`, `stdout` and `stderr`. Also test the **failure paths**: `returncode=1`, `side_effect=subprocess.TimeoutExpired(cmd, 30)`, `FileNotFoundError`.\n- **Dependency injection** (pass in a `session` or a runner) makes code testable without patching at all.\n- For HTTP: patch the session, or use a fake-HTTP library such as `responses` or `requests-mock` (both third-party) to define URL → response mappings, including 429/500 and timeouts.\n- A **sociable / integration** layer can use real tools safely: `git init` a repo under `tmp_path`, or put a fake executable script on `PATH` via `monkeypatch.setenv(\"PATH\", ...)`.\n- Keep a few real-network contract tests in a separate marker or job. They must not gate fast presubmit.\n- Assert on behaviour (the right command and arguments, the right payload, errors handled), not on incidental details.",
+    "followups": [
+      "How would you test the retry/backoff logic without actually sleeping?",
+      "What's the downside of mocking `subprocess.run` globally instead of in the module under test?"
+    ],
+    "level": "core"
+  }
+]

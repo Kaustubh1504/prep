@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    public List<List<Object>> stageDurations(String[] lines) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "stageDurations",
+  "notes": "Only lines that start with exactly [YYYY-MM-DDTHH:MM:SSZ] (UTC) count; any other line is noise, even if it contains a marker, and a // stage closes the most recently opened stage. A stage still open at the end of the log ends at the last timestamped line, and repeated names are separate entries. In Java each entry is a two-element List<Object>, e.g. Arrays.asList(name, seconds) with seconds an int."
+}

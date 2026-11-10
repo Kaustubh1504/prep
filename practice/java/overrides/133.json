@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public int[] applyRangeOverwrites(int[] nums, int[][] queries) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "applyRangeOverwrites",
+  "notes": "Each query is a {left, right, value} triple."
+}

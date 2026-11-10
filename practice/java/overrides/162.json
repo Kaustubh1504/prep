@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public TreeNode deleteNode(TreeNode root, int key) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "deleteNode",
+  "notes": "TreeNode is provided (val, left, right); the test's level-order list arrives as a tree and your returned root is read back in level order."
+}

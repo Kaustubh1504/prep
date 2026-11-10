@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "PracHub Saver",
+  "version": "1.0",
+  "description": "Opens each PracHub question from a CSV list and saves the rendered page HTML.",
+  "permissions": ["tabs", "scripting", "downloads", "storage"],
+  "host_permissions": ["https://prachub.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "PracHub Saver" }
+}

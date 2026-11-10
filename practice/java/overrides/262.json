@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public int[][] determinedRankings(int n, int[][] gameResults) {\n        \n        return null;\n    }\n}\n",
+  "className": "Solution",
+  "method": "determinedRankings",
+  "notes": "Each game result is a {winner, loser} pair; return {playerId, rank} pairs sorted by playerId."
+}

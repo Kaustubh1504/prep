@@ -1,0 +1,6 @@
+{
+  "starter": "class Solution {\n    public Object[] simulate(String[] grid, int steps, int recovery) {\n        \n        return null;\n    }\n\n    /** recovery defaults to 0 (no recovery): keep this overload. */\n    public Object[] simulate(String[] grid, int steps) {\n        return simulate(grid, steps, 0);\n    }\n}\n",
+  "className": "Solution",
+  "method": "simulate",
+  "notes": "Return new Object[]{finalGrid, stableAt} (a String[] and an int). Keep the 2-argument overload: it means recovery = 0."
+}

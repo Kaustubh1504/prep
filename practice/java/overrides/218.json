@@ -1,0 +1,6 @@
+{
+  "starter": "import java.util.*;\n\nclass Solution {\n    // Part 1: each form as a pair int[]{a, b}\n    public List<int[]> squareForms(long n) {\n        \n        return null;\n    }\n\n    // Part 2\n    public List<Integer> exactlyTwoForms(int limit) {\n        \n        return null;\n    }\n\n    // ---- Provided: test dispatcher used by the runner. Keep this. ----\n    public Object solve(int part, List<Object> args) {\n        Number value = (Number) args.get(0);\n        if (part == 1) return squareForms(value.longValue());\n        return exactlyTwoForms(value.intValue());\n    }\n}\n",
+  "className": "Solution",
+  "method": "solve",
+  "notes": "Implement squareForms (Part 1, pairs as int[]{a, b}) and exactlyTwoForms (Part 2); keep the provided solve(part, args) dispatcher, which the tests call."
+}

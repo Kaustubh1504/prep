@@ -1,0 +1,1168 @@
+{
+ "rank": 2601,
+ "kind": "function",
+ "entry": "cluster_logs",
+ "starter": "from typing import List\n\n\ndef cluster_logs(messages: List[str], threshold: float) -> List[List[int]]:\n    pass\n",
+ "compare": "exact",
+ "notes": "Return clusters in creation order, each listing message indices ascending. A message is compared only with each cluster's FIRST message and joins the first cluster that matches. Two messages with no tokens have similarity 1.0; an empty token set against a non-empty one has 0.0.",
+ "tests": [
+  {
+   "args": [
+    [
+     "Timeout waiting for modem 3",
+     "timeout waiting for modem 7",
+     "Assertion failed: rssi > -80",
+     "assertion failed: rssi > -95"
+    ],
+    0.6
+   ],
+   "expected": [
+    [
+     0,
+     1
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     "kernel panic in wifi driver",
+     "Kernel panic in BT driver",
+     "wifi driver kernel panic!!",
+     "disk full on /var/log",
+     "DISK FULL on /var/tmp"
+    ],
+    0.5
+   ],
+   "expected": [
+    [
+     0,
+     1,
+     2
+    ],
+    [
+     3,
+     4
+    ]
+   ],
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     "usb enumerate failed port 1",
+     "usb enumerate timeout port 2",
+     "usb enumerate failed port 9"
+    ],
+    0.75
+   ],
+   "expected": [
+    [
+     0,
+     2
+    ],
+    [
+     1
+    ]
+   ],
+   "hidden": false
+  },
+  {
+   "args": [
+    [],
+    0.5
+   ],
+   "expected": [],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "only one message here"
+    ],
+    0.9
+   ],
+   "expected": [
+    [
+     0
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "404",
+     "!!! ---",
+     "",
+     "error 500",
+     "error 501"
+    ],
+    0.5
+   ],
+   "expected": [
+    [
+     0,
+     1,
+     2
+    ],
+    [
+     3,
+     4
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "build 1234 failed",
+     "BUILD 99 FAILED",
+     "build_failed",
+     "Build-Failed: 7"
+    ],
+    1.0
+   ],
+   "expected": [
+    [
+     0,
+     1,
+     2,
+     3
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "a b c d",
+     "a b x y",
+     "a b c y",
+     "a b"
+    ],
+    0.5
+   ],
+   "expected": [
+    [
+     0,
+     2,
+     3
+    ],
+    [
+     1
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "alpha beta gamma delta",
+     "alpha beta gamma epsilon",
+     "alpha beta zeta epsilon",
+     "eta beta zeta epsilon"
+    ],
+    0.55
+   ],
+   "expected": [
+    [
+     0,
+     1
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "one two three four",
+     "five six seven eight",
+     "one two three five six seven eight"
+    ],
+    0.3
+   ],
+   "expected": [
+    [
+     0,
+     2
+    ],
+    [
+     1
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "x1 y2 z3",
+     "x1 y2 z3",
+     "X1-Y2_Z3"
+    ],
+    0.99
+   ],
+   "expected": [
+    [
+     0,
+     1,
+     2
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "same",
+     "same",
+     "same"
+    ],
+    0.0
+   ],
+   "expected": [
+    [
+     0,
+     1,
+     2
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "fail",
+     "pass",
+     "skip"
+    ],
+    0.0
+   ],
+   "expected": [
+    [
+     0,
+     1,
+     2
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "tmp1 tmp2",
+     "tmp3"
+    ],
+    0.1
+   ],
+   "expected": [
+    [
+     0
+    ],
+    [
+     1
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "network unreachable modem 6082",
+     "network unreachable sensor 7081",
+     "assertion failed in sensor at line 6484 wifi",
+     "disk quota exceeded on camera volume 2503",
+     "kernel panic sensor cpu 1506 camera",
+     "assertion failed in baseband at line 3402",
+     "assertion failed in camera at line 8080 camera",
+     "disk quota exceeded on modem volume 872",
+     "timeout waiting for camera after 3736 ms",
+     "kernel panic nfc cpu 5045",
+     "network unreachable bt 92 display",
+     "segfault in gpu pid 7727",
+     "disk quota exceeded on display volume 2501",
+     "assertion failed in camera at line 8834",
+     "segfault in bt pid 2413 sensor",
+     "disk quota exceeded on nfc volume 5418",
+     "assertion failed in bt at line 2438",
+     "segfault in gpu pid 7604",
+     "disk quota exceeded on baseband volume 5816",
+     "disk quota exceeded on bt volume 4164 baseband",
+     "assertion failed in audio at line 4165",
+     "disk quota exceeded on modem volume 2253 bt",
+     "segfault in bt pid 4791 wifi",
+     "disk quota exceeded on display volume 88",
+     "timeout waiting for camera after 1445 ms",
+     "assertion failed in nfc at line 5142 wifi",
+     "network unreachable sensor 88",
+     "segfault in baseband pid 6383",
+     "assertion failed in camera at line 6989",
+     "kernel panic display cpu 6839",
+     "assertion failed in nfc at line 7343",
+     "kernel panic bt cpu 1122",
+     "kernel panic audio cpu 8478 nfc",
+     "assertion failed in sensor at line 2387",
+     "network unreachable camera 2276",
+     "network unreachable baseband 3346",
+     "kernel panic gpu cpu 144",
+     "timeout waiting for wifi after 5852 ms",
+     "assertion failed in nfc at line 562 sensor",
+     "segfault in baseband pid 1776 bt",
+     "network unreachable sensor 7465",
+     "kernel panic nfc cpu 9730",
+     "kernel panic nfc cpu 6166 baseband",
+     "network unreachable gpu 1677",
+     "disk quota exceeded on camera volume 7050",
+     "network unreachable display 2568",
+     "disk quota exceeded on nfc volume 7365 modem",
+     "segfault in wifi pid 8666",
+     "segfault in baseband pid 3192",
+     "kernel panic nfc cpu 5197",
+     "segfault in modem pid 1172 sensor",
+     "kernel panic display cpu 5998",
+     "kernel panic camera cpu 6245",
+     "network unreachable gpu 1500",
+     "network unreachable gpu 7045 gpu",
+     "network unreachable sensor 2067",
+     "timeout waiting for bt after 1758 ms",
+     "kernel panic audio cpu 5527",
+     "disk quota exceeded on bt volume 8895 baseband",
+     "timeout waiting for bt after 9346 ms",
+     "segfault in display pid 4135",
+     "kernel panic nfc cpu 949",
+     "disk quota exceeded on baseband volume 2202 bt",
+     "network unreachable nfc 8928",
+     "segfault in camera pid 2453 gpu",
+     "disk quota exceeded on baseband volume 4205",
+     "kernel panic wifi cpu 9567",
+     "timeout waiting for bt after 6257 ms",
+     "disk quota exceeded on display volume 8343 camera",
+     "network unreachable baseband 2331",
+     "network unreachable camera 5648 sensor",
+     "disk quota exceeded on bt volume 2741",
+     "assertion failed in gpu at line 1569",
+     "kernel panic camera cpu 7870",
+     "timeout waiting for bt after 4096 ms",
+     "timeout waiting for audio after 3234 ms bt",
+     "segfault in camera pid 3556",
+     "segfault in display pid 5124",
+     "assertion failed in baseband at line 24 display",
+     "network unreachable modem 4427",
+     "timeout waiting for sensor after 223 ms",
+     "timeout waiting for sensor after 3765 ms",
+     "disk quota exceeded on sensor volume 6973 display",
+     "disk quota exceeded on audio volume 6172",
+     "network unreachable sensor 8361 baseband",
+     "disk quota exceeded on audio volume 7701",
+     "kernel panic sensor cpu 4327",
+     "assertion failed in wifi at line 9668",
+     "timeout waiting for nfc after 5715 ms",
+     "disk quota exceeded on gpu volume 9624 display",
+     "timeout waiting for display after 1786 ms audio",
+     "timeout waiting for audio after 8903 ms",
+     "disk quota exceeded on baseband volume 489 gpu",
+     "network unreachable camera 6194",
+     "kernel panic camera cpu 9582",
+     "timeout waiting for gpu after 4078 ms camera",
+     "segfault in nfc pid 1106",
+     "segfault in baseband pid 9781",
+     "segfault in baseband pid 7746",
+     "timeout waiting for audio after 9416 ms",
+     "network unreachable gpu 108",
+     "kernel panic display cpu 4225 display",
+     "timeout waiting for camera after 3221 ms audio",
+     "timeout waiting for sensor after 5970 ms bt",
+     "disk quota exceeded on audio volume 1383",
+     "disk quota exceeded on gpu volume 1823",
+     "timeout waiting for baseband after 4817 ms",
+     "kernel panic audio cpu 618 wifi",
+     "timeout waiting for gpu after 6870 ms sensor",
+     "assertion failed in nfc at line 7513",
+     "network unreachable sensor 885",
+     "kernel panic gpu cpu 7794",
+     "timeout waiting for camera after 3308 ms camera",
+     "timeout waiting for display after 638 ms",
+     "kernel panic nfc cpu 6039",
+     "kernel panic gpu cpu 6512",
+     "segfault in bt pid 8061",
+     "assertion failed in bt at line 9760 baseband",
+     "network unreachable camera 8652",
+     "segfault in sensor pid 6374 baseband",
+     "disk quota exceeded on baseband volume 1579",
+     "segfault in audio pid 8510",
+     "network unreachable audio 3317 modem",
+     "disk quota exceeded on sensor volume 5274",
+     "kernel panic sensor cpu 5608 sensor",
+     "assertion failed in sensor at line 2901 modem",
+     "timeout waiting for modem after 9963 ms",
+     "network unreachable audio 1012 bt",
+     "kernel panic sensor cpu 2794 sensor",
+     "network unreachable wifi 6344",
+     "network unreachable audio 1317",
+     "segfault in gpu pid 5967",
+     "disk quota exceeded on modem volume 4299 camera",
+     "disk quota exceeded on camera volume 3943",
+     "segfault in gpu pid 5800 sensor",
+     "disk quota exceeded on gpu volume 4172",
+     "kernel panic wifi cpu 5600 gpu",
+     "timeout waiting for audio after 2310 ms",
+     "kernel panic gpu cpu 1581",
+     "network unreachable audio 9559",
+     "assertion failed in gpu at line 9404",
+     "assertion failed in baseband at line 1945 wifi",
+     "disk quota exceeded on baseband volume 4235 camera",
+     "segfault in modem pid 8253",
+     "disk quota exceeded on wifi volume 6080",
+     "assertion failed in bt at line 4832",
+     "assertion failed in modem at line 3987 audio",
+     "network unreachable modem 218",
+     "assertion failed in modem at line 289",
+     "disk quota exceeded on gpu volume 1393 sensor",
+     "disk quota exceeded on modem volume 3022 bt",
+     "disk quota exceeded on sensor volume 8811",
+     "assertion failed in wifi at line 823",
+     "kernel panic sensor cpu 5719",
+     "segfault in audio pid 3119",
+     "segfault in display pid 904",
+     "assertion failed in gpu at line 7255",
+     "assertion failed in gpu at line 7089",
+     "disk quota exceeded on audio volume 778",
+     "network unreachable camera 11",
+     "timeout waiting for wifi after 1885 ms",
+     "timeout waiting for sensor after 9731 ms",
+     "kernel panic sensor cpu 9667 baseband",
+     "timeout waiting for sensor after 2616 ms sensor",
+     "kernel panic nfc cpu 8216",
+     "segfault in bt pid 4802 baseband",
+     "disk quota exceeded on camera volume 5553 audio",
+     "segfault in display pid 5500",
+     "disk quota exceeded on bt volume 9234",
+     "kernel panic audio cpu 8711",
+     "assertion failed in audio at line 5523",
+     "kernel panic bt cpu 7711",
+     "network unreachable baseband 6392 baseband",
+     "network unreachable sensor 7387",
+     "timeout waiting for gpu after 8267 ms",
+     "timeout waiting for bt after 2531 ms",
+     "assertion failed in sensor at line 2450 display",
+     "timeout waiting for baseband after 847 ms",
+     "disk quota exceeded on nfc volume 5232",
+     "timeout waiting for gpu after 6390 ms gpu",
+     "kernel panic audio cpu 8447 gpu",
+     "kernel panic bt cpu 5788",
+     "timeout waiting for camera after 5859 ms baseband",
+     "network unreachable nfc 1721",
+     "assertion failed in modem at line 5927",
+     "disk quota exceeded on baseband volume 3561 nfc",
+     "kernel panic modem cpu 382 display",
+     "segfault in audio pid 9637 camera",
+     "segfault in nfc pid 716",
+     "timeout waiting for baseband after 2879 ms nfc",
+     "timeout waiting for baseband after 4671 ms sensor",
+     "network unreachable nfc 655 nfc",
+     "timeout waiting for display after 311 ms",
+     "assertion failed in modem at line 8192",
+     "network unreachable camera 4978",
+     "segfault in modem pid 333",
+     "kernel panic wifi cpu 7649",
+     "kernel panic modem cpu 677",
+     "segfault in sensor pid 8937",
+     "assertion failed in bt at line 4643",
+     "segfault in audio pid 7665",
+     "timeout waiting for audio after 753 ms audio",
+     "segfault in camera pid 7257",
+     "timeout waiting for modem after 8979 ms",
+     "kernel panic sensor cpu 8252",
+     "kernel panic display cpu 7409",
+     "timeout waiting for bt after 2700 ms",
+     "timeout waiting for display after 7010 ms",
+     "timeout waiting for modem after 5180 ms",
+     "segfault in audio pid 7947",
+     "assertion failed in baseband at line 7329",
+     "disk quota exceeded on gpu volume 3679",
+     "timeout waiting for nfc after 5903 ms",
+     "segfault in display pid 1925",
+     "assertion failed in audio at line 8541",
+     "segfault in bt pid 7475",
+     "network unreachable baseband 7959",
+     "disk quota exceeded on nfc volume 1956",
+     "timeout waiting for gpu after 785 ms",
+     "disk quota exceeded on bt volume 9714",
+     "disk quota exceeded on modem volume 4867 sensor",
+     "assertion failed in bt at line 1331",
+     "network unreachable bt 126",
+     "assertion failed in bt at line 6099",
+     "disk quota exceeded on wifi volume 4541",
+     "segfault in modem pid 9250",
+     "segfault in display pid 2370",
+     "timeout waiting for display after 5976 ms",
+     "segfault in gpu pid 4701 wifi",
+     "disk quota exceeded on baseband volume 3307 camera",
+     "disk quota exceeded on gpu volume 6983",
+     "kernel panic bt cpu 675 nfc",
+     "disk quota exceeded on baseband volume 222 wifi",
+     "assertion failed in wifi at line 1402",
+     "segfault in display pid 3744",
+     "assertion failed in gpu at line 6795",
+     "disk quota exceeded on nfc volume 910 display",
+     "kernel panic nfc cpu 5718",
+     "segfault in wifi pid 837",
+     "segfault in gpu pid 8414 display",
+     "segfault in modem pid 4314",
+     "kernel panic nfc cpu 6349",
+     "segfault in bt pid 1398",
+     "kernel panic bt cpu 5281",
+     "timeout waiting for audio after 6212 ms",
+     "assertion failed in gpu at line 7234 nfc",
+     "assertion failed in sensor at line 3941",
+     "timeout waiting for audio after 8851 ms display",
+     "disk quota exceeded on camera volume 1211",
+     "network unreachable gpu 160 sensor",
+     "assertion failed in camera at line 4058",
+     "disk quota exceeded on display volume 1473 baseband",
+     "disk quota exceeded on display volume 5741",
+     "timeout waiting for gpu after 8584 ms wifi",
+     "assertion failed in display at line 9041",
+     "kernel panic bt cpu 2148",
+     "network unreachable wifi 4601",
+     "timeout waiting for gpu after 1741 ms wifi",
+     "segfault in nfc pid 1851",
+     "timeout waiting for camera after 3308 ms audio",
+     "assertion failed in display at line 5546 sensor",
+     "disk quota exceeded on modem volume 5192",
+     "assertion failed in baseband at line 4733",
+     "disk quota exceeded on modem volume 3638",
+     "assertion failed in nfc at line 8432 bt",
+     "segfault in baseband pid 522",
+     "disk quota exceeded on modem volume 8829",
+     "network unreachable baseband 4716",
+     "segfault in nfc pid 9992 baseband",
+     "kernel panic wifi cpu 3783",
+     "disk quota exceeded on modem volume 9853",
+     "assertion failed in modem at line 7133",
+     "timeout waiting for display after 8774 ms",
+     "segfault in gpu pid 6216",
+     "timeout waiting for audio after 4058 ms",
+     "disk quota exceeded on baseband volume 162",
+     "assertion failed in display at line 810 modem",
+     "timeout waiting for bt after 5840 ms",
+     "disk quota exceeded on gpu volume 6054",
+     "timeout waiting for bt after 5627 ms",
+     "disk quota exceeded on nfc volume 2953 wifi",
+     "timeout waiting for bt after 1306 ms",
+     "kernel panic camera cpu 8478",
+     "segfault in wifi pid 6724 display",
+     "network unreachable nfc 4430",
+     "assertion failed in camera at line 7091",
+     "timeout waiting for baseband after 8112 ms",
+     "network unreachable wifi 231 sensor",
+     "timeout waiting for sensor after 2168 ms gpu",
+     "network unreachable display 4260",
+     "network unreachable bt 6990",
+     "network unreachable audio 6487",
+     "network unreachable gpu 6938",
+     "timeout waiting for nfc after 8213 ms",
+     "timeout waiting for camera after 3233 ms nfc",
+     "kernel panic modem cpu 3096",
+     "network unreachable display 3158",
+     "network unreachable bt 5825 sensor",
+     "timeout waiting for display after 6054 ms",
+     "disk quota exceeded on audio volume 1777",
+     "assertion failed in gpu at line 9608 wifi",
+     "assertion failed in modem at line 6846",
+     "timeout waiting for modem after 3915 ms",
+     "kernel panic sensor cpu 8370",
+     "segfault in modem pid 471",
+     "timeout waiting for audio after 4875 ms",
+     "kernel panic display cpu 186 baseband",
+     "timeout waiting for modem after 7692 ms",
+     "segfault in camera pid 7067",
+     "timeout waiting for display after 8932 ms baseband",
+     "segfault in sensor pid 9674",
+     "timeout waiting for sensor after 4741 ms wifi",
+     "kernel panic bt cpu 7773",
+     "kernel panic gpu cpu 8417",
+     "kernel panic camera cpu 6359 display",
+     "kernel panic gpu cpu 2802 nfc",
+     "kernel panic camera cpu 3747 sensor",
+     "segfault in nfc pid 3519",
+     "assertion failed in bt at line 4842",
+     "assertion failed in audio at line 3839 sensor",
+     "segfault in camera pid 5513",
+     "kernel panic gpu cpu 6398 nfc",
+     "assertion failed in sensor at line 4346",
+     "kernel panic baseband cpu 2149",
+     "network unreachable gpu 9384",
+     "assertion failed in modem at line 5976",
+     "network unreachable gpu 5176",
+     "assertion failed in display at line 9546",
+     "kernel panic audio cpu 6575",
+     "assertion failed in modem at line 9118",
+     "network unreachable audio 5146 camera",
+     "network unreachable nfc 5266 display",
+     "kernel panic camera cpu 2794",
+     "network unreachable modem 5393",
+     "timeout waiting for audio after 2244 ms",
+     "assertion failed in display at line 4983 nfc",
+     "kernel panic gpu cpu 1885",
+     "timeout waiting for modem after 3662 ms",
+     "segfault in sensor pid 3773",
+     "disk quota exceeded on audio volume 86",
+     "kernel panic modem cpu 9129",
+     "timeout waiting for camera after 1266 ms",
+     "segfault in sensor pid 9258",
+     "disk quota exceeded on baseband volume 1624",
+     "segfault in camera pid 7967 modem",
+     "kernel panic bt cpu 9352 sensor",
+     "assertion failed in display at line 2088 sensor",
+     "kernel panic wifi cpu 9614",
+     "assertion failed in audio at line 9193",
+     "timeout waiting for audio after 7741 ms modem",
+     "disk quota exceeded on display volume 3808",
+     "timeout waiting for gpu after 9138 ms",
+     "disk quota exceeded on camera volume 2071 sensor",
+     "disk quota exceeded on wifi volume 7842",
+     "assertion failed in audio at line 1596",
+     "timeout waiting for baseband after 7978 ms",
+     "assertion failed in nfc at line 7716",
+     "network unreachable camera 3643",
+     "assertion failed in audio at line 9341",
+     "segfault in baseband pid 8752",
+     "segfault in wifi pid 6762 bt",
+     "disk quota exceeded on modem volume 2768",
+     "kernel panic gpu cpu 2148 wifi",
+     "disk quota exceeded on modem volume 1147",
+     "timeout waiting for modem after 4865 ms",
+     "segfault in display pid 490",
+     "timeout waiting for baseband after 8779 ms",
+     "timeout waiting for gpu after 2713 ms modem",
+     "timeout waiting for nfc after 2767 ms",
+     "assertion failed in bt at line 1940",
+     "segfault in modem pid 1321 camera",
+     "assertion failed in audio at line 332",
+     "timeout waiting for baseband after 4158 ms",
+     "assertion failed in gpu at line 8526",
+     "kernel panic gpu cpu 7843",
+     "kernel panic camera cpu 125",
+     "kernel panic modem cpu 9648 bt",
+     "kernel panic gpu cpu 9442",
+     "timeout waiting for bt after 6526 ms",
+     "timeout waiting for display after 5539 ms wifi",
+     "disk quota exceeded on nfc volume 9186 sensor",
+     "kernel panic modem cpu 2943 baseband",
+     "network unreachable display 6019",
+     "kernel panic nfc cpu 479",
+     "network unreachable audio 3899 audio",
+     "segfault in wifi pid 817",
+     "kernel panic modem cpu 8137",
+     "assertion failed in bt at line 7366",
+     "assertion failed in display at line 7111",
+     "disk quota exceeded on bt volume 9649",
+     "assertion failed in wifi at line 7709",
+     "segfault in modem pid 2006 modem",
+     "segfault in audio pid 7571",
+     "segfault in gpu pid 3789",
+     "segfault in wifi pid 3316",
+     "disk quota exceeded on baseband volume 1609",
+     "network unreachable modem 7746",
+     "network unreachable nfc 2939",
+     "network unreachable wifi 469",
+     "segfault in nfc pid 7721 camera"
+    ],
+    0.65
+   ],
+   "expected": [
+    [
+     0,
+     79,
+     122,
+     147,
+     333,
+     396
+    ],
+    [
+     1,
+     26,
+     40,
+     55,
+     70,
+     84,
+     110,
+     173,
+     249,
+     287,
+     297
+    ],
+    [
+     2,
+     25,
+     33,
+     38,
+     87,
+     125,
+     141,
+     152,
+     176,
+     233,
+     246,
+     260,
+     300,
+     319,
+     322,
+     346,
+     390
+    ],
+    [
+     3,
+     7,
+     12,
+     15,
+     18,
+     23,
+     44,
+     65,
+     68,
+     71,
+     83,
+     85,
+     104,
+     105,
+     120,
+     123,
+     132,
+     133,
+     135,
+     142,
+     144,
+     151,
+     158,
+     166,
+     168,
+     178,
+     211,
+     217,
+     219,
+     224,
+     229,
+     230,
+     248,
+     252,
+     261,
+     263,
+     266,
+     270,
+     275,
+     278,
+     299,
+     339,
+     343,
+     350,
+     352,
+     353,
+     361,
+     363,
+     389,
+     395
+    ],
+    [
+     4,
+     52,
+     73,
+     86,
+     94,
+     124,
+     128,
+     153,
+     162,
+     204,
+     282,
+     303,
+     314,
+     316,
+     332,
+     345,
+     375
+    ],
+    [
+     5,
+     6,
+     13,
+     16,
+     20,
+     28,
+     30,
+     72,
+     78,
+     109,
+     117,
+     140,
+     145,
+     148,
+     156,
+     157,
+     170,
+     184,
+     193,
+     199,
+     210,
+     214,
+     221,
+     223,
+     235,
+     250,
+     254,
+     262,
+     271,
+     285,
+     301,
+     318,
+     325,
+     327,
+     329,
+     348,
+     354,
+     356,
+     358,
+     369,
+     371,
+     373,
+     387,
+     388
+    ],
+    [
+     8,
+     24,
+     37,
+     56,
+     59,
+     67,
+     74,
+     80,
+     81,
+     88,
+     91,
+     95,
+     99,
+     102,
+     106,
+     112,
+     113,
+     126,
+     137,
+     160,
+     161,
+     163,
+     174,
+     175,
+     177,
+     179,
+     182,
+     192,
+     201,
+     203,
+     206,
+     207,
+     208,
+     212,
+     218,
+     227,
+     244,
+     259,
+     272,
+     274,
+     277,
+     279,
+     281,
+     286,
+     293,
+     294,
+     298,
+     302,
+     305,
+     307,
+     334,
+     337,
+     341,
+     351,
+     355,
+     364,
+     366,
+     368,
+     372,
+     378
+    ],
+    [
+     9,
+     32,
+     41,
+     42,
+     49,
+     61,
+     114,
+     164,
+     231,
+     237,
+     241,
+     315,
+     321,
+     383
+    ],
+    [
+     10,
+     45,
+     222,
+     289,
+     290,
+     296,
+     382
+    ],
+    [
+     11,
+     17,
+     64,
+     131,
+     134,
+     228,
+     239,
+     273,
+     393
+    ],
+    [
+     14,
+     22,
+     39,
+     50,
+     116,
+     119,
+     165,
+     198,
+     215,
+     242,
+     310,
+     338,
+     342,
+     360
+    ],
+    [
+     19,
+     21,
+     58,
+     62,
+     92,
+     150,
+     185,
+     232,
+     251
+    ],
+    [
+     27,
+     48,
+     97,
+     98,
+     265,
+     268,
+     359
+    ],
+    [
+     29,
+     51,
+     101,
+     186,
+     205,
+     306
+    ],
+    [
+     31,
+     171,
+     181,
+     243,
+     255,
+     312,
+     376
+    ],
+    [
+     34,
+     93,
+     118,
+     159,
+     194,
+     330,
+     357
+    ],
+    [
+     35,
+     69,
+     172,
+     216,
+     267
+    ],
+    [
+     36,
+     111,
+     115,
+     136,
+     138,
+     180,
+     313,
+     336,
+     362,
+     374,
+     377
+    ],
+    [
+     43,
+     53,
+     54,
+     100,
+     292,
+     324,
+     326
+    ],
+    [
+     46,
+     220,
+     236,
+     280,
+     380
+    ],
+    [
+     47,
+     238,
+     283,
+     385,
+     394
+    ],
+    [
+     57,
+     107,
+     169,
+     328
+    ],
+    [
+     60,
+     77,
+     155,
+     167,
+     213,
+     226,
+     234,
+     365
+    ],
+    [
+     63,
+     183,
+     191,
+     284,
+     331,
+     397
+    ],
+    [
+     66,
+     196,
+     269,
+     347
+    ],
+    [
+     75,
+     90,
+     103,
+     247,
+     349
+    ],
+    [
+     76,
+     187,
+     202,
+     308,
+     320,
+     344,
+     370,
+     399
+    ],
+    [
+     82,
+     89,
+     149
+    ],
+    [
+     96,
+     188,
+     258,
+     317
+    ],
+    [
+     108,
+     190,
+     253,
+     257,
+     288,
+     311,
+     367
+    ],
+    [
+     121,
+     154,
+     200,
+     209,
+     392
+    ],
+    [
+     127,
+     130,
+     139,
+     291,
+     384
+    ],
+    [
+     129,
+     256,
+     398
+    ],
+    [
+     143,
+     195,
+     225,
+     240,
+     304,
+     391
+    ],
+    [
+     146,
+     276
+    ],
+    [
+     189,
+     309
+    ],
+    [
+     197,
+     295,
+     340,
+     381,
+     386
+    ],
+    [
+     245,
+     264,
+     335
+    ],
+    [
+     323
+    ],
+    [
+     379
+    ]
+   ],
+   "hidden": true
+  }
+ ]
+}

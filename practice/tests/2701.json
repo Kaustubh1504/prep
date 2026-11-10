@@ -1,0 +1,511 @@
+{
+ "rank": 2701,
+ "kind": "function",
+ "entry": "exercise",
+ "starter": "from typing import Optional\n\n\nclass FirmwareVersion:\n    \"\"\"An immutable firmware version such as 24.1.3 or 24.1.3-rc.2 (fields: major, minor, patch, rc).\"\"\"\n\n    @classmethod\n    def parse(cls, text: str) -> \"FirmwareVersion\":\n        pass\n\n\n# ---------------------------------------------------------------------------\n# Provided \u2014 keep this. The tests call exercise(texts): it parses each text with your class,\n# then sorts, de-duplicates and probes the class contract (repr, ==, <, immutability, subclassing).\n# ---------------------------------------------------------------------------\nfrom typing import Any, Dict, List\n\n\ndef _outcome(action):\n    try:\n        return [\"ok\", action()]\n    except Exception as err:\n        return [\"raised\", \"AttributeError\" if isinstance(err, AttributeError) else type(err).__name__]\n\n\ndef _contract(v):\n    class Nightly(FirmwareVersion):\n        pass\n\n    def assign():\n        v.major = 99\n\n    nightly = Nightly.parse(str(v))\n    return {\n        \"repr\": repr(v),\n        \"equals_its_string\": v == str(v),\n        \"less_than_string\": _outcome(lambda: v < str(v)),\n        \"assign_major\": _outcome(assign)[0] + \":\" + str(v.major),\n        \"reparsed_equal_and_same_hash\": [FirmwareVersion.parse(str(v)) == v,\n                                         hash(FirmwareVersion.parse(str(v))) == hash(v)],\n        \"subclass_parse\": [type(nightly).__name__, repr(nightly)],\n        \"fields\": [v.major, v.minor, v.patch, v.rc],\n    }\n\n\ndef exercise(texts: List[str]) -> Dict[str, Any]:\n    versions, invalid = [], []\n    for text in texts:\n        try:\n            versions.append(FirmwareVersion.parse(text))\n        except ValueError:\n            invalid.append(text)\n    return {\n        \"canonical\": [str(v) for v in versions],\n        \"invalid\": invalid,\n        \"sorted\": [str(v) for v in sorted(versions)],\n        \"distinct\": len(set(versions)),\n        \"latest\": str(max(versions)) if versions else None,\n        \"contract\": _contract(versions[0]) if versions else None,\n    }\n",
+ "compare": "exact",
+ "notes": "Write FirmwareVersion with fields major, minor, patch and rc (an int, or None for a release). parse(text) strips surrounding whitespace, then accepts exactly MAJOR.MINOR.PATCH with an optional -rc.N suffix, where every number is one or more ASCII digits 0-9 (leading zeros allowed, so 1.02.3 equals 1.2.3); anything else raises ValueError. Versions are immutable, hashable and equal by value. Ordering is numeric, and 1.2.3-rc.N sorts before 1.2.3; comparing with a non-version with < raises TypeError, and == with a string is just False. str(v) is canonical (24.1.3-rc.2) and repr(v) is ClassName('24.1.3-rc.2') using the actual class name, and parse called on a subclass returns that subclass. exercise is provided.",
+ "tests": [
+  {
+   "args": [
+    [
+     "24.1.3",
+     "24.1.3-rc.2",
+     "23.9.10",
+     "24.1.10"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "24.1.3",
+     "24.1.3-rc.2",
+     "23.9.10",
+     "24.1.10"
+    ],
+    "invalid": [],
+    "sorted": [
+     "23.9.10",
+     "24.1.3-rc.2",
+     "24.1.3",
+     "24.1.10"
+    ],
+    "distinct": 4,
+    "latest": "24.1.10",
+    "contract": {
+     "repr": "FirmwareVersion('24.1.3')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:24",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('24.1.3')"
+     ],
+     "fields": [
+      24,
+      1,
+      3,
+      null
+     ]
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     "1.2",
+     "v1.2.3",
+     "1.2.3-rc.1",
+     " 1.02.3 ",
+     "1.2.3"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "1.2.3-rc.1",
+     "1.2.3",
+     "1.2.3"
+    ],
+    "invalid": [
+     "1.2",
+     "v1.2.3"
+    ],
+    "sorted": [
+     "1.2.3-rc.1",
+     "1.2.3",
+     "1.2.3"
+    ],
+    "distinct": 2,
+    "latest": "1.2.3",
+    "contract": {
+     "repr": "FirmwareVersion('1.2.3-rc.1')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:1",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('1.2.3-rc.1')"
+     ],
+     "fields": [
+      1,
+      2,
+      3,
+      1
+     ]
+    }
+   },
+   "hidden": false
+  },
+  {
+   "args": [
+    [
+     "2.0.0-rc.10",
+     "2.0.0-rc.2",
+     "2.0.0",
+     "1.99.99",
+     "2.0.0-rc.1"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "2.0.0-rc.10",
+     "2.0.0-rc.2",
+     "2.0.0",
+     "1.99.99",
+     "2.0.0-rc.1"
+    ],
+    "invalid": [],
+    "sorted": [
+     "1.99.99",
+     "2.0.0-rc.1",
+     "2.0.0-rc.2",
+     "2.0.0-rc.10",
+     "2.0.0"
+    ],
+    "distinct": 5,
+    "latest": "2.0.0",
+    "contract": {
+     "repr": "FirmwareVersion('2.0.0-rc.10')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:2",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('2.0.0-rc.10')"
+     ],
+     "fields": [
+      2,
+      0,
+      0,
+      10
+     ]
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "10.0.0",
+     "9.0.0",
+     "1.10.0",
+     "1.9.0",
+     "1.0.10",
+     "1.0.9"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "10.0.0",
+     "9.0.0",
+     "1.10.0",
+     "1.9.0",
+     "1.0.10",
+     "1.0.9"
+    ],
+    "invalid": [],
+    "sorted": [
+     "1.0.9",
+     "1.0.10",
+     "1.9.0",
+     "1.10.0",
+     "9.0.0",
+     "10.0.0"
+    ],
+    "distinct": 6,
+    "latest": "10.0.0",
+    "contract": {
+     "repr": "FirmwareVersion('10.0.0')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:10",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('10.0.0')"
+     ],
+     "fields": [
+      10,
+      0,
+      0,
+      null
+     ]
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "+1.2.3",
+     "1. 2.3",
+     "1_0.2.3",
+     "1.2.3.4",
+     "1..3",
+     "",
+     "1.2.3-rc",
+     "1.2.3-rc.x",
+     "1.2.3-RC.1",
+     "1.2.3-beta.1",
+     "1.2.-3",
+     "0.0.0"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "0.0.0"
+    ],
+    "invalid": [
+     "+1.2.3",
+     "1. 2.3",
+     "1_0.2.3",
+     "1.2.3.4",
+     "1..3",
+     "",
+     "1.2.3-rc",
+     "1.2.3-rc.x",
+     "1.2.3-RC.1",
+     "1.2.3-beta.1",
+     "1.2.-3"
+    ],
+    "sorted": [
+     "0.0.0"
+    ],
+    "distinct": 1,
+    "latest": "0.0.0",
+    "contract": {
+     "repr": "FirmwareVersion('0.0.0')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:0",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('0.0.0')"
+     ],
+     "fields": [
+      0,
+      0,
+      0,
+      null
+     ]
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "007.000.001",
+     "7.0.1",
+     "7.0.1",
+     "7.0.01-rc.03",
+     "7.0.1-rc.3"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "7.0.1",
+     "7.0.1",
+     "7.0.1",
+     "7.0.1-rc.3",
+     "7.0.1-rc.3"
+    ],
+    "invalid": [],
+    "sorted": [
+     "7.0.1-rc.3",
+     "7.0.1-rc.3",
+     "7.0.1",
+     "7.0.1",
+     "7.0.1"
+    ],
+    "distinct": 2,
+    "latest": "7.0.1",
+    "contract": {
+     "repr": "FirmwareVersion('7.0.1')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:7",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('7.0.1')"
+     ],
+     "fields": [
+      7,
+      0,
+      1,
+      null
+     ]
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "bad",
+     "also bad"
+    ]
+   ],
+   "expected": {
+    "canonical": [],
+    "invalid": [
+     "bad",
+     "also bad"
+    ],
+    "sorted": [],
+    "distinct": 0,
+    "latest": null,
+    "contract": null
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "3.4.5-rc.0",
+     "3.4.5-rc.0",
+     "3.4.4",
+     "3.4.5"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "3.4.5-rc.0",
+     "3.4.5-rc.0",
+     "3.4.4",
+     "3.4.5"
+    ],
+    "invalid": [],
+    "sorted": [
+     "3.4.4",
+     "3.4.5-rc.0",
+     "3.4.5-rc.0",
+     "3.4.5"
+    ],
+    "distinct": 3,
+    "latest": "3.4.5",
+    "contract": {
+     "repr": "FirmwareVersion('3.4.5-rc.0')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:3",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('3.4.5-rc.0')"
+     ],
+     "fields": [
+      3,
+      4,
+      5,
+      0
+     ]
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "\t12.0.1\n",
+     "12.0.1-rc.7",
+     "12.0.0",
+     "11.255.255",
+     "12.0.1-rc.12"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "12.0.1",
+     "12.0.1-rc.7",
+     "12.0.0",
+     "11.255.255",
+     "12.0.1-rc.12"
+    ],
+    "invalid": [],
+    "sorted": [
+     "11.255.255",
+     "12.0.0",
+     "12.0.1-rc.7",
+     "12.0.1-rc.12",
+     "12.0.1"
+    ],
+    "distinct": 5,
+    "latest": "12.0.1",
+    "contract": {
+     "repr": "FirmwareVersion('12.0.1')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:12",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('12.0.1')"
+     ],
+     "fields": [
+      12,
+      0,
+      1,
+      null
+     ]
+    }
+   },
+   "hidden": true
+  },
+  {
+   "args": [
+    [
+     "5.5.5"
+    ]
+   ],
+   "expected": {
+    "canonical": [
+     "5.5.5"
+    ],
+    "invalid": [],
+    "sorted": [
+     "5.5.5"
+    ],
+    "distinct": 1,
+    "latest": "5.5.5",
+    "contract": {
+     "repr": "FirmwareVersion('5.5.5')",
+     "equals_its_string": false,
+     "less_than_string": [
+      "raised",
+      "TypeError"
+     ],
+     "assign_major": "raised:5",
+     "reparsed_equal_and_same_hash": [
+      true,
+      true
+     ],
+     "subclass_parse": [
+      "Nightly",
+      "Nightly('5.5.5')"
+     ],
+     "fields": [
+      5,
+      5,
+      5,
+      null
+     ]
+    }
+   },
+   "hidden": true
+  }
+ ]
+}
